@@ -352,10 +352,6 @@ func invalidValueEncoder(e *encodeState, v reflect.Value) {
 	e.writeNil()
 }
 
-func compact(a, b, c interface{}) error {
-	panic("compact not implemented")
-}
-
 func marshalerEncoder(e *encodeState, v reflect.Value) {
 	if v.Kind() == reflect.Ptr && v.IsNil() {
 		e.writeNil()
@@ -364,9 +360,8 @@ func marshalerEncoder(e *encodeState, v reflect.Value) {
 	m := v.Interface().(Marshaler)
 	b, err := m.MarshalEDN()
 	if err == nil {
-		// copy EDN into buffer, checking validity.
-		// TODO: Fix the compacting impl
-		err = compact(&e.Buffer, b, true)
+		// copy EDN into buffer, checking (token) validity.
+		err = Compact(&e.Buffer, b)
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
@@ -382,8 +377,8 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value) {
 	m := va.Interface().(Marshaler)
 	b, err := m.MarshalEDN()
 	if err == nil {
-		// copy EDN into buffer, checking validity.
-		err = compact(&e.Buffer, b, true)
+		// copy EDN into buffer, checking (token) validity.
+		err = Compact(&e.Buffer, b)
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})

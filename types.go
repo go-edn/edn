@@ -15,10 +15,18 @@ func (k Keyword) String() string {
 	return fmt.Sprintf(":%s", string(k))
 }
 
+func (k Keyword) MarshalEDN() ([]byte, error) {
+	return []byte(k.String()), nil
+}
+
 type Symbol string
 
 func (s Symbol) String() string {
 	return string(s)
+}
+
+func (s Symbol) MarshalEDN() ([]byte, error) {
+	return []byte(s), nil
 }
 
 type Vector []interface{}

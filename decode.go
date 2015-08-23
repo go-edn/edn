@@ -531,11 +531,11 @@ func (d *Decoder) set(v reflect.Value) {
 		case reflect.Struct:
 			// check if struct, and if so, ensure it has 0 fields
 			if t.Elem().NumField() != 0 {
-				d.error(&UnmarshalTypeError{"map", v.Type()})
+				d.error(&UnmarshalTypeError{"set", v.Type()})
 			}
 			setValue = reflect.Zero(t.Elem())
 		default:
-			d.error(&UnmarshalTypeError{"map", v.Type()})
+			d.error(&UnmarshalTypeError{"set", v.Type()})
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
@@ -546,11 +546,11 @@ func (d *Decoder) set(v reflect.Value) {
 			v.Set(reflect.ValueOf(d.setInterface()))
 			return
 		} else {
-			d.error(&UnmarshalTypeError{"bool", v.Type()})
+			d.error(&UnmarshalTypeError{"set", v.Type()})
 		}
 
 	default:
-		d.error(&UnmarshalTypeError{"map", v.Type()})
+		d.error(&UnmarshalTypeError{"set", v.Type()})
 	}
 	// special case here, to avoid panics when we have slices and maps as keys.
 	// Split out from code below to improve perf

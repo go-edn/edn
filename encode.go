@@ -748,23 +748,6 @@ func (e *encodeState) string(s string) (int, error) {
 			start = i
 			continue
 		}
-		// U+2028 is LINE SEPARATOR.
-		// U+2029 is PARAGRAPH SEPARATOR.
-		// They are both technically valid characters in EDN strings,
-		// but don't work in EDNP, which has to be evaluated as JavaScript,
-		// and can lead to security holes there. It is valid EDN to
-		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
-		if c == '\u2028' || c == '\u2029' {
-			if start < i {
-				e.WriteString(s[start:i])
-			}
-			e.WriteString(`\u202`)
-			e.WriteByte(hex[c&0xF])
-			i += size
-			start = i
-			continue
-		}
 		i += size
 	}
 	if start < len(s) {
@@ -821,23 +804,6 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 				e.Write(s[start:i])
 			}
 			e.WriteString(`\ufffd`)
-			i += size
-			start = i
-			continue
-		}
-		// U+2028 is LINE SEPARATOR.
-		// U+2029 is PARAGRAPH SEPARATOR.
-		// They are both technically valid characters in EDN strings,
-		// but don't work in EDNP, which has to be evaluated as JavaScript,
-		// and can lead to security holes there. It is valid EDN to
-		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
-		if c == '\u2028' || c == '\u2029' {
-			if start < i {
-				e.Write(s[start:i])
-			}
-			e.WriteString(`\u202`)
-			e.WriteByte(hex[c&0xF])
 			i += size
 			start = i
 			continue

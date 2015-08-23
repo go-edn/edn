@@ -133,8 +133,9 @@ func (l *lexer) eof() lexState {
 		return lexError
 	}
 	lt := l.state(' ')
-	if lt != lexEndPrev {
+	if lt == lexCont {
 		l.err = &SyntaxError{"unexpected end of EDN input", l.position}
+		lt = lexError
 	}
 	if l.err != nil {
 		return lexError
@@ -218,7 +219,7 @@ func (l *lexer) stateComment(r rune) lexState {
 }
 
 func (l *lexer) stateEndLit(r rune) lexState {
-	if isWhitespace(r) || r == '"' || r == '{' || r == '[' || r == '(' || r == ')' || r == ']' || r == '}' || r == '\\' {
+	if isWhitespace(r) || r == '"' || r == '{' || r == '[' || r == '(' || r == ')' || r == ']' || r == '}' || r == '\\' || r == ';' {
 		return lexEndPrev
 	}
 	return l.error(r, "- unexpected rune after legal "+l.token.String())
@@ -363,7 +364,7 @@ func (l *lexer) stateDotPre(r rune) lexState {
 		l.state = l.stateSlash
 		return lexCont
 	}
-	return l.error(r, `after token starting with '.'`)
+	return l.stateEndLit(r)
 }
 
 // after reading numeric values plus '.', example: '12.'

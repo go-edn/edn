@@ -974,7 +974,11 @@ func (d *Decoder) rawToken() ([]byte, tokenType, error) {
 		case lexCont:
 			val.WriteRune(r)
 		case lexIgnore:
-			return nil, tokenError, errInternal
+			if err != io.EOF {
+				return nil, tokenError, errInternal
+			} else {
+				return nil, tokenError, errNoneLeft
+			}
 		case lexEnd:
 			if err != io.EOF {
 				val.WriteRune(r)

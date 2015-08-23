@@ -913,6 +913,7 @@ func (d *Decoder) rawToken() ([]byte, tokenType, error) {
 	doIgnore := true
 	if d.hasLeftover {
 		d.hasLeftover = false
+		d.lex.position++
 		switch d.lex.state(d.leftover) {
 		case lexCont:
 			val.WriteRune(d.leftover)
@@ -938,6 +939,7 @@ func (d *Decoder) rawToken() ([]byte, tokenType, error) {
 			if err != nil {
 				return nil, tokenError, err
 			}
+			d.lex.position++
 			switch d.lex.state(r) {
 			case lexCont: // got a value, so continue on past doIgnoring
 				// TODO: This returns an error. Will it happen in practice? Probably?
@@ -965,6 +967,7 @@ func (d *Decoder) rawToken() ([]byte, tokenType, error) {
 		case err != nil:
 			return nil, tokenError, err
 		default:
+			d.lex.position++
 			ls = d.lex.state(r)
 		}
 		switch ls {

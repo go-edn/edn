@@ -60,7 +60,6 @@ If you want to write that user again, just `Marshal` it:
 	bs, err := edn.Marshal(user)
 ```
 
-
 ## License
 
 Copyright © 2015 Jean Niklas L'orange

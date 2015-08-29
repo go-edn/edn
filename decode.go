@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"runtime"
@@ -40,6 +41,10 @@ func (d *Decoder) Buffered() *bufio.Reader {
 	return d.rd
 }
 
+func (d *Decoder) AddTagFn(tagname string, fn interface{}) (interface{}, error) {
+	return d.tagmap.addTagFn(tagname, fn)
+}
+
 // Unmarshaler is the interface implemented by objects that can unmarshal an EDN
 // description of themselves. The input can be assumed to be a valid encoding of
 // an EDN value. UnmarshalEDN must copy the EDN data if it wishes to retain the
@@ -66,6 +71,7 @@ type Decoder struct {
 	lex        *lexer
 	savedError error
 	rd         *bufio.Reader
+	tagmap     tagMap
 	// parser-specific
 	prevSlice []byte
 	prevTtype tokenType
@@ -133,6 +139,22 @@ func newDecoder(buf *bufio.Reader) *Decoder {
 		hasLeftover: false,
 		leftover:    '\uFFFD',
 	}
+}
+
+func (d *Decoder) getTagFn(tagname string) *reflect.Value {
+	d.tagmap.RLock()
+	f, ok := d.tagmap.m[tagname]
+	d.tagmap.RUnlock()
+	if ok {
+		return &f
+	}
+	globalTags.RLock()
+	f, ok = globalTags.m[tagname]
+	globalTags.RUnlock()
+	if ok {
+		return &f
+	}
+	return nil
 }
 
 func (d *Decoder) error(err error) {
@@ -306,14 +328,49 @@ func (d *Decoder) tag(tag []byte, v reflect.Value) {
 		return
 	}
 
-	d.error(errNotImplemented)
+	fn := d.getTagFn(string(tag[1:]))
+	if fn == nil {
+		// So in theory we'd have to match against any interface that could be
+		// assignable to the Tag type, to ensure we would decode whenever possible.
+		// That is any interface that specifies any combination of the methods
+		// MarshalEDN, UnmarshalEDN and String. I'm not sure if that makes sense
+		// though, so I've punted this for now.
+		d.error(errInternal)
+		return
+	} else {
+		tfn := fn.Type()
+		val := reflect.New(tfn.In(0))
+		d.value(val)
+		res := fn.Call([]reflect.Value{val.Elem()})
+		if err, ok := res[1].Interface().(error); ok && err != nil {
+			d.error(err)
+		}
+		r := res[0]
+		// oh no, this is not going to be a fun exercise I think. what do we do with interfaces?
+		if !r.Type().AssignableTo(v.Type()) {
+			d.error(fmt.Errorf("Cannot assign %s to %s (tag issue?)", r.Type(), v.Type()))
+		}
+		v.Set(r)
+	}
 }
 
 func (d *Decoder) tagInterface(tag []byte) interface{} {
-	var t Tag
-	t.Tagname = string(tag[1:])
-	t.Value = d.valueInterface()
-	return t
+	fn := d.getTagFn(string(tag[1:]))
+	if fn == nil {
+		var t Tag
+		t.Tagname = string(tag[1:])
+		t.Value = d.valueInterface()
+		return t
+	} else {
+		tfn := fn.Type()
+		val := reflect.New(tfn.In(0))
+		d.value(val)
+		res := fn.Call([]reflect.Value{val.Elem()})
+		if err, ok := res[1].Interface().(error); ok && err != nil {
+			d.error(err)
+		}
+		return res[0].Interface()
+	}
 }
 
 func (d *Decoder) valueInterface() interface{} {

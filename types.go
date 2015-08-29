@@ -102,12 +102,6 @@ tag:
 	return Unmarshal(bs[endTag:], &t.Value)
 }
 
-type rawTag struct {
-	tagname   string
-	value     []byte
-	valueType tokenType
-}
-
 type Set map[interface{}]bool
 
 func (s Set) String() string {

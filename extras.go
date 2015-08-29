@@ -27,7 +27,7 @@ func getu4(s []byte) rune {
 // until it gets to a non-pointer.
 // if it encounters an Unmarshaler, indirect stops and returns that.
 // if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
-func (d *Decoder) indirect(v reflect.Value, decodingNull bool) (unmarshaler, reflect.Value) {
+func (d *Decoder) indirect(v reflect.Value, decodingNull bool) (Unmarshaler, reflect.Value) {
 	// If v is a named type and is addressable,
 	// start with its address, so that if the type has pointer methods,
 	// we find them.
@@ -56,7 +56,7 @@ func (d *Decoder) indirect(v reflect.Value, decodingNull bool) (unmarshaler, ref
 			v.Set(reflect.New(v.Type().Elem()))
 		}
 		if v.Type().NumMethod() > 0 {
-			if u, ok := v.Interface().(unmarshaler); ok {
+			if u, ok := v.Interface().(Unmarshaler); ok {
 				return u, reflect.Value{}
 			}
 		}

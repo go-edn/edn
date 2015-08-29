@@ -5,6 +5,8 @@
 package edn
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"strings"
 )
@@ -56,6 +58,48 @@ type Tag struct {
 
 func (t Tag) String() string {
 	return fmt.Sprintf("#%s %s", t.Tagname, t.Value)
+}
+
+func (t Tag) MarshalEDN() ([]byte, error) {
+	str := []byte(fmt.Sprintf(`#%s `, t.Tagname))
+	b, err := Marshal(t.Value)
+	if err != nil {
+		return nil, err
+	}
+	return append(str, b...), nil
+}
+
+func (t *Tag) UnmarshalEDN(bs []byte) error {
+	// read actual tag, using the lexer.
+	var lex lexer
+	lex.reset()
+	buf := bufio.NewReader(bytes.NewBuffer(bs))
+	start := 0
+	endTag := 0
+tag:
+	for {
+		r, rlen, err := buf.ReadRune()
+		if err != nil {
+			return err
+		}
+
+		ls := lex.state(r)
+		switch ls {
+		case lexIgnore:
+			start += rlen
+			endTag += rlen
+		case lexError:
+			return lex.err
+		case lexEndPrev:
+			break tag
+		case lexEnd: // unexpected, assuming tag which is not ending with lexEnd
+			return errUnexpeced
+		case lexCont:
+			endTag += rlen
+		}
+	}
+	t.Tagname = string(bs[start+1 : endTag])
+	return Unmarshal(bs[endTag:], &t.Value)
 }
 
 type rawTag struct {

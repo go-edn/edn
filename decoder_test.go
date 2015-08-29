@@ -85,3 +85,26 @@ func TestRec(t *testing.T) {
 		t.Error("Mismatch between the Go tree and the tree encoded as EDN")
 	}
 }
+
+func TestDiscard(t *testing.T) {
+	var s Symbol
+	discarding := "#_ #zap #_ xyz foo bar"
+	expected := Symbol("bar")
+	err := UnmarshalString(discarding, &s)
+	if err != nil {
+		t.Errorf("Expected '#_ #zap #_ xyz foo bar' to successfully read")
+		t.Log(err.Error())
+	} else if expected != s {
+		t.Error("Mismatch between the Go symbol and the symbol encoded as EDN")
+	}
+
+	discarding = "#_ #foo #foo #foo #_#_bar baz zip quux"
+	expected = Symbol("quux")
+	err = UnmarshalString(discarding, &s)
+	if err != nil {
+		t.Errorf("Expected '#_ #foo #foo #foo #_#_bar baz zip quux' to successfully read")
+		t.Log(err.Error())
+	} else if expected != s {
+		t.Error("Mismatch between the Go symbol and the symbol encoded as EDN")
+	}
+}

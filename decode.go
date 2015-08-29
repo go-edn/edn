@@ -46,7 +46,7 @@ func (d *Decoder) Buffered() *bufio.Reader {
 // data after returning.
 //
 // (This is not available yet, as it's not working properly.)
-type unmarshaler interface {
+type Unmarshaler interface {
 	UnmarshalEDN([]byte) error
 }
 
@@ -154,8 +154,8 @@ func (d *Decoder) array(v reflect.Value, endType tokenType) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
-		bs, _, err := d.nextToken()
-		if err != nil {
+		bs, err := d.nextValueBytes() // nextvaluebytes
+		if err == nil {
 			err = u.UnmarshalEDN(bs)
 		}
 		if err != nil {
@@ -274,7 +274,7 @@ func (d *Decoder) value(v reflect.Value) {
 	case tokenSymbol, tokenKeyword, tokenString, tokenInt, tokenFloat, tokenChar:
 		d.literal(bs, ttype, v)
 	case tokenTag:
-		d.error(errNotImplemented)
+		d.tag(bs, v)
 	case tokenListStart:
 		d.array(v, tokenListEnd)
 	case tokenVectorStart:
@@ -284,6 +284,36 @@ func (d *Decoder) value(v reflect.Value) {
 	case tokenMapStart:
 		d.ednmap(v)
 	}
+}
+
+func (d *Decoder) tag(tag []byte, v reflect.Value) {
+	// Check for unmarshaler.
+	u, pv := d.indirect(v, false)
+	if u != nil {
+		bs, err := d.nextValueBytes()
+		if err == nil {
+			err = u.UnmarshalEDN(append(append(tag, ' '), bs...))
+		}
+		if err != nil {
+			d.error(err)
+		}
+		return
+	}
+	v = pv
+
+	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
+		v.Set(reflect.ValueOf(d.tagInterface(tag)))
+		return
+	}
+
+	d.error(errNotImplemented)
+}
+
+func (d *Decoder) tagInterface(tag []byte) interface{} {
+	var t Tag
+	t.Tagname = string(tag[1:])
+	t.Value = d.valueInterface()
+	return t
 }
 
 func (d *Decoder) valueInterface() interface{} {
@@ -318,8 +348,8 @@ func (d *Decoder) ednmap(v reflect.Value) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
-		bs, _, err := d.nextToken()
-		if err != nil {
+		bs, err := d.nextValueBytes()
+		if err == nil {
 			err = u.UnmarshalEDN(bs)
 		}
 		if err != nil {
@@ -502,8 +532,8 @@ func (d *Decoder) set(v reflect.Value) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
-		bs, _, err := d.nextToken()
-		if err != nil {
+		bs, err := d.nextValueBytes()
+		if err == nil {
 			err = u.UnmarshalEDN(bs)
 		}
 		if err != nil {
@@ -656,7 +686,7 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 		} else if v.Kind() == reflect.String && v.Type() == symbolType { // "actual" symbols
 			v.SetString(string(bs))
 		} else if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
-			v.Set(reflect.ValueOf(Keyword(string(bs[1:]))))
+			v.Set(reflect.ValueOf(Symbol(string(bs))))
 		} else {
 			d.error(&UnmarshalTypeError{"symbol", v.Type()})
 		}
@@ -885,13 +915,9 @@ func (d *Decoder) nextToken() ([]byte, tokenType, error) {
 	}
 	switch tt {
 	case tokenDiscard:
-		bs, tt, err := d.nextToken() // to handle multiple discards in a row
+		err := d.traverseValue()
 		if err != nil {
-			return bs, tt, err
-		}
-		switch tt {
-		case tokenListEnd, tokenMapEnd, tokenVectorEnd:
-			return bs, tt, errUnexpeced
+			return nil, tokenError, err
 		}
 		return d.nextToken() // again for discards
 	default:
@@ -985,13 +1011,223 @@ func (d *Decoder) rawToken() ([]byte, tokenType, error) {
 			}
 			return val.Bytes(), d.lex.token, nil
 		case lexEndPrev:
-			if err != io.EOF {
-				d.hasLeftover = true
-				d.leftover = r
-			}
+			d.hasLeftover = true
+			d.leftover = r
 			return val.Bytes(), d.lex.token, nil
 		case lexError:
 			return nil, tokenError, d.lex.err
+		}
+	}
+}
+
+// traverseValue reads a single value and skips it -- whether it is a list, map
+// or a literal. Doesn't validate its state. skips over discard tokens as well.
+func (d *Decoder) traverseValue() error {
+	tstack := newTokenStack()
+	for {
+		_, tt, err := d.nextToken()
+		if err != nil {
+			return err
+		}
+		err = tstack.push(tt)
+		if err != nil || tstack.done() {
+			return err
+		}
+	}
+}
+
+type tokenStack struct {
+	toks     []tokenType
+	toplevel tokenType
+}
+
+func newTokenStack() *tokenStack {
+	return &tokenStack{
+		toks:     nil,
+		toplevel: tokenError,
+	}
+}
+
+func (t *tokenStack) done() bool {
+	return len(t.toks) == 0 && t.toplevel != tokenDiscard
+}
+
+func (t *tokenStack) peek() tokenType {
+	return t.toks[len(t.toks)-1]
+}
+
+func (t *tokenStack) pop() {
+	t.toks = t.toks[:len(t.toks)-1]
+}
+
+func (t *tokenStack) push(tt tokenType) error {
+	// retain toplevel value for done check
+	if len(t.toks) == 0 {
+		t.toplevel = tt
+	}
+	switch tt {
+	case tokenMapStart, tokenVectorStart, tokenListStart, tokenSetStart, tokenDiscard, tokenTag:
+		// append to toks, regardless
+		t.toks = append(t.toks, tt)
+		return nil
+	case tokenMapEnd:
+		if len(t.toks) == 0 || t.peek() != tokenMapStart || t.peek() != tokenSetStart {
+			return errUnexpeced
+		}
+		t.pop()
+	case tokenListEnd:
+		if len(t.toks) == 0 || t.peek() != tokenListStart {
+			return errUnexpeced
+		}
+		t.pop()
+	case tokenVectorEnd:
+		if len(t.toks) == 0 || t.peek() != tokenVectorEnd {
+			return errUnexpeced
+		}
+		t.pop()
+	default:
+	}
+	// popping of discards and tags
+	for len(t.toks) > 0 && t.peek() == tokenTag {
+		t.pop()
+	}
+	if len(t.toks) > 0 && t.peek() == tokenDiscard {
+		t.pop()
+	}
+	return nil
+}
+
+// Oh, asking about why this is so similar to the part above, eh? Yes, I would
+// also consider this a crime. At least I use the same lexer. This is probably
+// next on the list when I have people complaining about perf issues.
+func (d *Decoder) nextValueBytes() ([]byte, error) {
+	// TODO: Ensure values inside maps come in pairs.
+	tstack := newTokenStack()
+	var val bytes.Buffer
+	if d.undo {
+		d.undo = false
+		b := d.prevSlice
+		tt := d.prevTtype
+		d.prevSlice = nil
+		d.prevTtype = tokenError
+		if tt == tokenDiscard { // should be impossible to get a tokenDiscard here?
+			return nil, errInternal
+		}
+		err := tstack.push(tt)
+		if err != nil || tstack.done() {
+			return val.Bytes(), err
+		}
+		val.Write(b)
+	}
+readElems:
+	for {
+		d.lex.reset()
+		// Can't ignore whitespace in general. So I guess we just add it onto the buffer
+		readWs := true
+		if d.hasLeftover {
+			// we can have leftover from previous iteration. e.g. "foo[bar]" will have
+			// leftover "[" and "]"
+			d.hasLeftover = false
+			d.lex.position++
+			val.WriteRune(d.leftover)
+			switch d.lex.state(d.leftover) {
+			case lexCont:
+				readWs = false
+			case lexEnd:
+				err := tstack.push(d.lex.token)
+				if err != nil || tstack.done() {
+					return val.Bytes(), err
+				}
+				d.lex.reset()
+			case lexEndPrev:
+				return nil, errInternal
+			case lexError:
+				return nil, d.lex.err
+			case lexIgnore:
+				// just keep going
+			}
+		}
+		if readWs {
+		readWhitespace:
+			// If we end up here, it means we expect at least one more token
+			for {
+				r, _, err := d.rd.ReadRune()
+				if err == io.EOF {
+					return nil, errNoneLeft
+				}
+				if err != nil {
+					return nil, err
+				}
+				d.lex.position++
+				val.WriteRune(r)
+				switch d.lex.state(r) {
+				case lexCont: // found something that looks like a value, so break out of whitespace loop
+					break readWhitespace
+				case lexError:
+					return nil, d.lex.err
+				case lexEnd:
+					err := tstack.push(d.lex.token)
+					if err != nil || tstack.done() {
+						return val.Bytes(), err
+					}
+					// Here we'd usually continue on next iteration loop (which is safe
+					// and valid), but since we know we don't have any leftovers, we can
+					// just reset the lexer and keep attempting to read whitespace.
+					d.lex.reset()
+				case lexEndPrev:
+					return nil, errInternal
+				case lexIgnore:
+					// keep on readin'
+				}
+			}
+		}
+		// read element
+		for {
+			r, rlength, err := d.rd.ReadRune()
+			var ls lexState
+			// ugh, this is not exactly perfect.
+			switch {
+			case err == io.EOF:
+				ls = d.lex.eof()
+			case err != nil:
+				return nil, err
+			default:
+				d.lex.position++
+				val.WriteRune(r)
+				ls = d.lex.state(r)
+			}
+			switch ls {
+			case lexCont:
+				// keep going
+			case lexIgnore:
+				if err != io.EOF {
+					return nil, errInternal
+				} else {
+					return nil, errNoneLeft
+				}
+			case lexEnd:
+				ioErr := err
+				err := tstack.push(d.lex.token)
+				if err != nil || tstack.done() {
+					return val.Bytes(), err
+				}
+				if ioErr == io.EOF /* && !tstack.done() */ {
+					return nil, errNoneLeft
+				}
+				continue readElems
+			case lexEndPrev: // if err == io.EOF then we cannot end up here. (Invariant forced by lexer)
+				val.Truncate(val.Len() - rlength)
+				d.hasLeftover = true
+				d.leftover = r
+
+				err := tstack.push(d.lex.token)
+				if err != nil || tstack.done() {
+					return val.Bytes(), err
+				}
+				continue readElems
+			case lexError:
+				return nil, d.lex.err
+			}
 		}
 	}
 }

@@ -2,6 +2,7 @@ package edn
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -125,5 +126,53 @@ func TestAddTag(t *testing.T) {
 		t.Errorf("Couldn't unmarshal int: %s", err.Error())
 	} else if val != 3 {
 		t.Errorf("Expected value to be 3, was %d", val)
+	}
+}
+
+func TestAssignInterface(t *testing.T) {
+	var v fmt.Stringer
+	instStr := `#inst "2015-08-29T21:28:34.311-00:00"`
+	err := UnmarshalString(instStr, &v)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal time tag into stringer: %s", err.Error())
+	}
+}
+
+type Colour interface {
+	Space() string
+}
+type RGB struct {
+	R uint8
+	G uint8
+	B uint8
+}
+
+func (_ RGB) Space() string { return "RGB" }
+
+type YCbCr struct {
+	Y  uint8
+	Cb int8
+	Cr int8
+}
+
+func (_ YCbCr) Space() string { return "YCbCr" }
+
+func TestAssignMultiInterface(t *testing.T) {
+	var colours []Colour
+	j := `[#go-edn/ycbcr {:y 255 :cb 0 :cr -10}
+         #go-edn/rgb {:r 98 :g 218 :b 255}]`
+	d := NewDecoder(bytes.NewBufferString(j))
+	d.AddTagFn("go-edn/rgb", func(r RGB) (RGB, error) { return r, nil })
+	d.AddTagFn("go-edn/ycbcr", func(y YCbCr) (YCbCr, error) { return y, nil })
+	err := d.Decode(&colours)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal colours: %s", err.Error())
+	} else {
+		if colours[0].Space() != "YCbCr" {
+			t.Errorf("Expected first colour to have space YCbCr, but was %s", colours[0].Space())
+		}
+		if colours[1].Space() != "RGB" {
+			t.Errorf("Expected second colour to have space RGB, but was %s", colours[0].Space())
+		}
 	}
 }

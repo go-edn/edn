@@ -41,8 +41,12 @@ func (d *Decoder) Buffered() *bufio.Reader {
 	return d.rd
 }
 
-func (d *Decoder) AddTagFn(tagname string, fn interface{}) (interface{}, error) {
+func (d *Decoder) AddTagFn(tagname string, fn interface{}) error {
 	return d.tagmap.addTagFn(tagname, fn)
+}
+
+func (d *Decoder) AddTagStruct(tagname string, example interface{}) error {
+	return d.tagmap.addTagStruct(tagname, example)
 }
 
 // Unmarshaler is the interface implemented by objects that can unmarshal an EDN
@@ -339,18 +343,25 @@ func (d *Decoder) tag(tag []byte, v reflect.Value) {
 		return
 	} else {
 		tfn := fn.Type()
-		val := reflect.New(tfn.In(0))
-		d.value(val)
-		res := fn.Call([]reflect.Value{val.Elem()})
-		if err, ok := res[1].Interface().(error); ok && err != nil {
-			d.error(err)
+		var result reflect.Value
+		// if not func, just match on struct shape
+		if tfn.Kind() != reflect.Func {
+			result = reflect.New(tfn).Elem()
+			d.value(result)
+		} else { // otherwise match on input value and call the function
+			inVal := reflect.New(tfn.In(0))
+			d.value(inVal)
+			res := fn.Call([]reflect.Value{inVal.Elem()})
+			if err, ok := res[1].Interface().(error); ok && err != nil {
+				d.error(err)
+			}
+			result = res[0]
 		}
-		r := res[0]
-		// oh no, this is not going to be a fun exercise I think. what do we do with interfaces?
-		if !r.Type().AssignableTo(v.Type()) {
-			d.error(fmt.Errorf("Cannot assign %s to %s (tag issue?)", r.Type(), v.Type()))
+		// This may lead to fun edge cases related to pointer and non-pointer interfaces...?
+		if !result.Type().AssignableTo(v.Type()) {
+			d.error(fmt.Errorf("Cannot assign %s to %s (tag issue?)", result.Type(), v.Type()))
 		}
-		v.Set(r)
+		v.Set(result)
 	}
 }
 
@@ -361,6 +372,10 @@ func (d *Decoder) tagInterface(tag []byte) interface{} {
 		t.Tagname = string(tag[1:])
 		t.Value = d.valueInterface()
 		return t
+	} else if fn.Type().Kind() != reflect.Func {
+		res := reflect.New(fn.Type()).Elem()
+		d.value(res)
+		return res.Interface()
 	} else {
 		tfn := fn.Type()
 		val := reflect.New(tfn.In(0))

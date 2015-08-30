@@ -176,3 +176,44 @@ func TestAssignMultiInterface(t *testing.T) {
 		}
 	}
 }
+
+func TestAssignStruct(t *testing.T) {
+	var val interface{}
+	// reuse the rgb struct here
+	j := `#go-edn/rgb {:r 98 :g 218 :b 255}`
+	d := NewDecoder(bytes.NewBufferString(j))
+	d.AddTagStruct("go-edn/rgb", RGB{})
+	err := d.Decode(&val)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal RGB struct tag: %s", err.Error())
+	} else if rgb, ok := val.(RGB); ok {
+		expected := RGB{98, 218, 255}
+		if rgb != expected {
+			t.Errorf("RGB struct tag had unexpected value: %q. Expected %q", rgb, expected)
+		}
+	} else { // if not  with rgb
+		t.Errorf("RGB tag was unmarshalled into %T", val)
+	}
+}
+
+func TestAssignType(t *testing.T) {
+	type Nat int
+	var val interface{}
+	j := `#nat 10`
+	d := NewDecoder(bytes.NewBufferString(j))
+	d.AddTagStruct("nat", Nat(0))
+	err := d.Decode(&val)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal #nat type tag: %s", err.Error())
+	} else if nat, ok := val.(Nat); ok {
+		expected := Nat(10)
+		if nat != expected {
+			t.Errorf("nat type tag had unexpected value: %q. Expected %q", nat, expected)
+		}
+	} else {
+		t.Errorf("nat tag was unmarshalled into %T", val)
+	}
+}
+
+// TODO: Check interface types. what happens if the pointer implements the
+// interface, but the value returned is not a pointer? and the other way around.

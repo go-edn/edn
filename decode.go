@@ -361,11 +361,27 @@ func (d *Decoder) tag(tag []byte, v reflect.Value) {
 			}
 			result = res[0]
 		}
-		// This may lead to fun edge cases related to pointer and non-pointer interfaces...?
-		if !result.Type().AssignableTo(v.Type()) {
-			d.error(fmt.Errorf("Cannot assign %s to %s (tag issue?)", result.Type(), v.Type()))
+		// result is not necessarily direct, so we have to make it direct, but
+		// *only* if it's NOT null at every step. Which leads to the question: How
+		// do we unify these values? This is particularly hairy if these are double
+		// pointers or bigger.
+
+		// Currently we only attempt to solve this for results by checking if the
+		// result can be dereferenced into a value. The value will always be a
+		// non-pointer, so presumably we can assign it in this fashion as a
+		// temporary resolution.
+		if result.Type().AssignableTo(v.Type()) {
+			v.Set(result)
+			return
 		}
-		v.Set(result)
+		if result.Kind() == reflect.Ptr && !result.IsNil() &&
+			result.Elem().Type().AssignableTo(v.Type()) {
+			// is res a non-nil pointer to a value we can assign to? If yes, then
+			// let's just do that.
+			v.Set(result.Elem())
+			return
+		}
+		d.error(fmt.Errorf("Cannot assign %s to %s (tag issue?)", result.Type(), v.Type()))
 	}
 }
 

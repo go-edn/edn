@@ -215,5 +215,87 @@ func TestAssignType(t *testing.T) {
 	}
 }
 
-// TODO: Check interface types. what happens if the pointer implements the
-// interface, but the value returned is not a pointer? and the other way around.
+func TestAssignPtrStruct(t *testing.T) {
+	var val RGB
+	j := `#go-edn/rgb {:r 0 :g 2 :b 3}`
+	d := NewDecoder(bytes.NewBufferString(j))
+	d.AddTagStruct("go-edn/rgb", (*RGB)(nil))
+	err := d.Decode(&val)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal RGB struct tag: %s", err.Error())
+	} else {
+		expected := RGB{0, 2, 3}
+		if val != expected {
+			t.Errorf("RGB struct tag had unexpected value: %q. Expected %q", val, expected)
+		}
+	}
+}
+
+func TestAssignFuncPtr(t *testing.T) {
+	var ednInst time.Time
+	inst, _ := time.Parse(time.RFC3339, "2124-05-13T14:51:64.127-00:00")
+	j := `#inst "2124-05-13T14:51:64.127-00:00"`
+	d := NewDecoder(bytes.NewBufferString(j))
+	// override original inst function
+	d.AddTagFn("inst", func(s string) (*time.Time, error) {
+		val, err := time.Parse(time.RFC3339, s)
+		if err != nil {
+			return nil, err
+		}
+		return &val, nil
+	})
+	err := d.Decode(&ednInst)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal interface (time tag): %s", err.Error())
+	} else if inst.UTC() != ednInst.UTC() {
+		// TODO: Still surprised by the UTC call here.
+		t.Error("Mismatch between time and the expected value")
+		t.Logf("%s (expected) vs %s (actual)", inst, ednInst)
+	}
+}
+
+type Method interface {
+	Call() string
+}
+
+type ValueMethod struct {
+	Value int
+}
+
+func (v ValueMethod) Call() string {
+	return fmt.Sprintf("%d", v.Value) // Won't bother with strconv here
+}
+
+func TestAssignIFaceVal(t *testing.T) {
+	var ednVal Method
+	d := NewDecoder(bytes.NewBufferString(`#go-edn/value-method {:value 10}`))
+	d.AddTagStruct("go-edn/value-method", &ValueMethod{})
+
+	err := d.Decode(&ednVal)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal interface (ValueMethod): %s", err.Error())
+	} else if ednVal.Call() != "10" {
+		t.Errorf("Unexpected result of method call, value is %#v", ednVal)
+	}
+}
+
+type PointerMethod struct {
+	Value int
+}
+
+func (p PointerMethod) Call() string {
+	return fmt.Sprintf("%d", p.Value)
+}
+
+func TestAssignIFacePtr(t *testing.T) {
+	var ednVal Method
+	d := NewDecoder(bytes.NewBufferString(`#go-edn/pointer-method {:value 10}`))
+	d.AddTagStruct("go-edn/pointer-method", PointerMethod{})
+
+	err := d.Decode(&ednVal)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal interface (PointerMethod): %s", err.Error())
+	} else if ednVal.Call() != "10" {
+		t.Errorf("Unexpected result of method call, value is %#v", ednVal)
+	}
+}

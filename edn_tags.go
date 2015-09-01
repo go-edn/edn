@@ -14,16 +14,16 @@ var (
 	ErrTagOverwritten  = errors.New("Previous tag implementation was overwritten")
 )
 
-var globalTags tagMap
+var globalTags TagMap
 
-type tagMap struct {
+type TagMap struct {
 	sync.RWMutex
 	m map[string]reflect.Value
 }
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
-func (tm *tagMap) addTagFn(name string, fn interface{}) error {
+func (tm *TagMap) AddTagFn(name string, fn interface{}) error {
 	// TODO: check name
 	rfn := reflect.ValueOf(fn)
 	rtyp := rfn.Type()
@@ -37,7 +37,7 @@ func (tm *tagMap) addTagFn(name string, fn interface{}) error {
 	return tm.addVal(name, rfn)
 }
 
-func (tm *tagMap) addVal(name string, val reflect.Value) error {
+func (tm *TagMap) addVal(name string, val reflect.Value) error {
 	tm.Lock()
 	if tm.m == nil {
 		tm.m = map[string]reflect.Value{}
@@ -53,10 +53,10 @@ func (tm *tagMap) addVal(name string, val reflect.Value) error {
 }
 
 func AddTagFn(name string, fn interface{}) error {
-	return globalTags.addTagFn(name, fn)
+	return globalTags.AddTagFn(name, fn)
 }
 
-func (tm *tagMap) addTagStruct(name string, val interface{}) error {
+func (tm *TagMap) AddTagStruct(name string, val interface{}) error {
 	rstruct := reflect.ValueOf(val)
 	switch rstruct.Type().Kind() {
 	case reflect.Invalid, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer:
@@ -66,7 +66,7 @@ func (tm *tagMap) addTagStruct(name string, val interface{}) error {
 }
 
 func AddTagStruct(name string, val interface{}) error {
-	return globalTags.addTagStruct(name, val)
+	return globalTags.AddTagStruct(name, val)
 }
 
 func init() {

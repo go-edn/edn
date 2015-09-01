@@ -42,11 +42,15 @@ func (d *Decoder) Buffered() *bufio.Reader {
 }
 
 func (d *Decoder) AddTagFn(tagname string, fn interface{}) error {
-	return d.tagmap.addTagFn(tagname, fn)
+	return d.tagmap.AddTagFn(tagname, fn)
 }
 
 func (d *Decoder) AddTagStruct(tagname string, example interface{}) error {
-	return d.tagmap.addTagStruct(tagname, example)
+	return d.tagmap.AddTagStruct(tagname, example)
+}
+
+func (d *Decoder) UseTagMap(tm TagMap) {
+	d.tagmap = tm
 }
 
 // Unmarshaler is the interface implemented by objects that can unmarshal an EDN
@@ -75,7 +79,7 @@ type Decoder struct {
 	lex        *lexer
 	savedError error
 	rd         *bufio.Reader
-	tagmap     tagMap
+	tagmap     TagMap
 	// parser-specific
 	prevSlice []byte
 	prevTtype tokenType

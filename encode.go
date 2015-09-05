@@ -250,25 +250,25 @@ func (e *encodeState) reflectValue(v reflect.Value) {
 
 type encoderFunc func(e *encodeState, v reflect.Value)
 
-type typeAndColl struct {
+type typeAndTag struct {
 	t     reflect.Type
-	ctype collectionType
+	ctype tagType
 }
 
 var encoderCache struct {
 	sync.RWMutex
-	m map[typeAndColl]encoderFunc
+	m map[typeAndTag]encoderFunc
 }
 
 func valueEncoder(v reflect.Value) encoderFunc {
 	if !v.IsValid() {
 		return invalidValueEncoder
 	}
-	return typeEncoder(v.Type(), collUndefined)
+	return typeEncoder(v.Type(), tagUndefined)
 }
 
-func typeEncoder(t reflect.Type, collType collectionType) encoderFunc {
-	tac := typeAndColl{t, collType}
+func typeEncoder(t reflect.Type, tagType tagType) encoderFunc {
+	tac := typeAndTag{t, tagType}
 	encoderCache.RLock()
 	f := encoderCache.m[tac]
 	encoderCache.RUnlock()
@@ -282,7 +282,7 @@ func typeEncoder(t reflect.Type, collType collectionType) encoderFunc {
 	// func is only used for recursive types.
 	encoderCache.Lock()
 	if encoderCache.m == nil {
-		encoderCache.m = make(map[typeAndColl]encoderFunc)
+		encoderCache.m = make(map[typeAndTag]encoderFunc)
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -294,7 +294,7 @@ func typeEncoder(t reflect.Type, collType collectionType) encoderFunc {
 
 	// Compute fields without lock.
 	// Might duplicate effort but won't hold other computations back.
-	f = newTypeEncoder(t, collType, true)
+	f = newTypeEncoder(t, tagType, true)
 	wg.Done()
 	encoderCache.Lock()
 	encoderCache.m[tac] = f
@@ -308,20 +308,26 @@ var (
 
 // newTypeEncoder constructs an encoderFunc for a type.
 // The returned encoder only checks CanAddr when allowAddr is true.
-func newTypeEncoder(t reflect.Type, collType collectionType, allowAddr bool) encoderFunc {
+func newTypeEncoder(t reflect.Type, tagType tagType, allowAddr bool) encoderFunc {
 	if t.Implements(marshalerType) {
 		return marshalerEncoder
 	}
 	if t.Kind() != reflect.Ptr && allowAddr {
 		if reflect.PtrTo(t).Implements(marshalerType) {
-			return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, collType, false))
+			return newCondAddrEncoder(addrMarshalerEncoder, newTypeEncoder(t, tagType, false))
 		}
 	}
 
 	switch t.Kind() {
 	case reflect.Bool:
 		return boolEncoder
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int32:
+		if tagType == tagRune {
+			return runeEncoder
+		} else {
+			return intEncoder
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
 		return intEncoder
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return uintEncoder
@@ -334,15 +340,15 @@ func newTypeEncoder(t reflect.Type, collType collectionType, allowAddr bool) enc
 	case reflect.Interface:
 		return interfaceEncoder
 	case reflect.Struct:
-		return newStructEncoder(t, collType)
+		return newStructEncoder(t, tagType)
 	case reflect.Map:
-		return newMapEncoder(t, collType)
+		return newMapEncoder(t, tagType)
 	case reflect.Slice:
-		return newSliceEncoder(t, collType)
+		return newSliceEncoder(t, tagType)
 	case reflect.Array:
-		return newArrayEncoder(t, collType)
+		return newArrayEncoder(t, tagType)
 	case reflect.Ptr:
-		return newPtrEncoder(t, collType)
+		return newPtrEncoder(t, tagType)
 	default:
 		return unsupportedTypeEncoder
 	}
@@ -361,7 +367,9 @@ func marshalerEncoder(e *encodeState, v reflect.Value) {
 	b, err := m.MarshalEDN()
 	if err == nil {
 		// copy EDN into buffer, checking (token) validity.
+		e.ensureDelim()
 		err = Compact(&e.Buffer, b)
+		e.needsDelim = true
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
@@ -378,7 +386,9 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value) {
 	b, err := m.MarshalEDN()
 	if err == nil {
 		// copy EDN into buffer, checking (token) validity.
+		e.ensureDelim()
 		err = Compact(&e.Buffer, b)
+		e.needsDelim = true
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
@@ -392,6 +402,11 @@ func boolEncoder(e *encodeState, v reflect.Value) {
 	} else {
 		e.WriteString("false")
 	}
+	e.needsDelim = true
+}
+
+func runeEncoder(e *encodeState, v reflect.Value) {
+	encodeRune(&e.Buffer, rune(v.Int()))
 	e.needsDelim = true
 }
 
@@ -476,14 +491,14 @@ func (se *structEncoder) encode(e *encodeState, v reflect.Value) {
 	e.needsDelim = false
 }
 
-func newStructEncoder(t reflect.Type, collType collectionType) encoderFunc {
+func newStructEncoder(t reflect.Type, tagType tagType) encoderFunc {
 	fields := cachedTypeFields(t)
 	se := &structEncoder{
 		fields:    fields,
 		fieldEncs: make([]encoderFunc, len(fields)),
 	}
 	for i, f := range fields {
-		se.fieldEncs[i] = typeEncoder(typeByIndex(t, f.index), f.collType)
+		se.fieldEncs[i] = typeEncoder(typeByIndex(t, f.index), f.tagType)
 	}
 	return se.encode
 }
@@ -537,7 +552,7 @@ func (me *mapSetEncoder) encode(e *encodeState, v reflect.Value) {
 	e.needsDelim = false
 }
 
-func newMapEncoder(t reflect.Type, collType collectionType) encoderFunc {
+func newMapEncoder(t reflect.Type, tagType tagType) encoderFunc {
 	canBeSet := false
 	switch t.Elem().Kind() {
 	case reflect.Struct:
@@ -547,16 +562,16 @@ func newMapEncoder(t reflect.Type, collType collectionType) encoderFunc {
 	case reflect.Bool:
 		canBeSet = true
 	}
-	if (collType == collUndefined || collType == collSet) && canBeSet {
-		me := &mapSetEncoder{typeEncoder(t.Key(), collUndefined)}
+	if (tagType == tagUndefined || tagType == tagSet) && canBeSet {
+		me := &mapSetEncoder{typeEncoder(t.Key(), tagUndefined)}
 		return me.encode
 	}
-	if collType != collUndefined && collType != collMap {
+	if tagType != tagUndefined && tagType != tagMap {
 		return unsupportedTypeEncoder
 	}
 	me := &mapEncoder{
-		typeEncoder(t.Key(), collUndefined),
-		typeEncoder(t.Elem(), collUndefined),
+		typeEncoder(t.Key(), tagUndefined),
+		typeEncoder(t.Elem(), tagUndefined),
 	}
 	return me.encode
 }
@@ -608,12 +623,12 @@ func (se *sliceEncoder) encode(e *encodeState, v reflect.Value) {
 	se.arrayEnc(e, v)
 }
 
-func newSliceEncoder(t reflect.Type, collType collectionType) encoderFunc {
+func newSliceEncoder(t reflect.Type, tagType tagType) encoderFunc {
 	// Byte slices get special treatment; arrays don't.
 	if t.Elem().Kind() == reflect.Uint8 {
 		return encodeByteSlice
 	}
-	enc := &sliceEncoder{newArrayEncoder(t, collType)}
+	enc := &sliceEncoder{newArrayEncoder(t, tagType)}
 	return enc.encode
 }
 
@@ -647,12 +662,12 @@ func (ae *listArrayEncoder) encode(e *encodeState, v reflect.Value) {
 	e.needsDelim = false
 }
 
-func newArrayEncoder(t reflect.Type, collType collectionType) encoderFunc {
-	if collType == collList {
-		enc := &listArrayEncoder{typeEncoder(t.Elem(), collUndefined)}
+func newArrayEncoder(t reflect.Type, tagType tagType) encoderFunc {
+	if tagType == tagList {
+		enc := &listArrayEncoder{typeEncoder(t.Elem(), tagUndefined)}
 		return enc.encode
 	} else {
-		enc := &arrayEncoder{typeEncoder(t.Elem(), collUndefined)}
+		enc := &arrayEncoder{typeEncoder(t.Elem(), tagUndefined)}
 		return enc.encode
 	}
 }
@@ -669,8 +684,8 @@ func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value) {
 	pe.elemEnc(e, v.Elem())
 }
 
-func newPtrEncoder(t reflect.Type, collType collectionType) encoderFunc {
-	enc := &ptrEncoder{typeEncoder(t.Elem(), collType)}
+func newPtrEncoder(t reflect.Type, tagType tagType) encoderFunc {
+	enc := &ptrEncoder{typeEncoder(t.Elem(), tagType)}
 	return enc.encode
 }
 
@@ -866,7 +881,7 @@ type field struct {
 	typ       reflect.Type
 	omitEmpty bool
 	fnameType emitType
-	collType  collectionType
+	tagType   tagType
 }
 
 type emitType int
@@ -877,14 +892,15 @@ const (
 	emitString
 )
 
-type collectionType int
+type tagType int
 
 const (
-	collUndefined collectionType = iota
-	collSet
-	collMap
-	collVec
-	collList
+	tagUndefined tagType = iota
+	tagSet
+	tagMap
+	tagVec
+	tagList
+	tagRune
 )
 
 func fillField(f field) field {
@@ -1000,18 +1016,20 @@ func typeFields(t reflect.Type) []field {
 				}
 				// key, sym, str
 
-				var collType collectionType // add collection rules
+				var tagType tagType // add tag rules
 				switch {
 				case opts.Contains("set"):
-					collType = collSet
+					tagType = tagSet
 				case opts.Contains("map"):
-					collType = collMap
+					tagType = tagMap
 				case opts.Contains("vector"):
-					collType = collVec
+					tagType = tagVec
 				case opts.Contains("list"):
-					collType = collList
+					tagType = tagList
+				case opts.Contains("rune"):
+					tagType = tagRune
 				default:
-					collType = collUndefined
+					tagType = tagUndefined
 				}
 
 				// Record found field and index sequence.
@@ -1029,7 +1047,7 @@ func typeFields(t reflect.Type) []field {
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
 						fnameType: emit,
-						collType:  collType,
+						tagType:   tagType,
 					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -100,6 +101,39 @@ tag:
 	}
 	t.Tagname = string(bs[start+1 : endTag])
 	return Unmarshal(bs[endTag:], &t.Value)
+}
+
+type Rune rune
+
+func (r Rune) MarshalEDN() ([]byte, error) {
+	buf := bytes.NewBuffer(make([]byte, 0, 10))
+	encodeRune(buf, rune(r))
+	return buf.Bytes(), nil
+}
+
+func encodeRune(buf *bytes.Buffer, r rune) {
+	if !isWhitespace(r) {
+		buf.WriteByte('\\')
+		buf.WriteRune(r)
+	} else {
+		switch r {
+		case '\b':
+			buf.WriteString(`\backspace`)
+		case '\f':
+			buf.WriteString(`\formfeed`)
+		case '\n':
+			buf.WriteString(`\newline`)
+		case '\r':
+			buf.WriteString(`\return`)
+		case '\t':
+			buf.WriteString(`\tab`)
+		case ' ':
+			buf.WriteString(`\space`)
+		default:
+			val := strconv.QuoteRuneToASCII(r)
+			buf.WriteString(val[1 : len(val)-1])
+		}
+	}
 }
 
 type Set map[interface{}]bool

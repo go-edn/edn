@@ -875,7 +875,7 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 			}
 			v.Set(reflect.ValueOf(r))
 		case reflect.Int32: // rune is an alias for int32
-			v.Set(reflect.ValueOf(r))
+			v.SetInt(int64(r))
 		}
 	case tokenString:
 		s, ok := unquoteBytes(bs)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"testing/quick"
 	"time"
 )
 
@@ -297,5 +298,56 @@ func TestAssignIFacePtr(t *testing.T) {
 		t.Errorf("Couldn't unmarshal interface (PointerMethod): %s", err.Error())
 	} else if ednVal.Call() != "10" {
 		t.Errorf("Unexpected result of method call, value is %#v", ednVal)
+	}
+}
+
+func TestDecodeByteslice(t *testing.T) {
+	var v interface{}
+	err := UnmarshalString(`#base64 "SGVsbG8sIEVETiBmcmllbmRz"`, &v)
+	if err != nil {
+		t.Errorf("Couldn't unmarshal base64 into interface{}: %s", err.Error())
+	} else {
+		switch val := v.(type) {
+		case []byte:
+			if string(val) != "Hello, EDN friends" {
+				t.Error(`The base64-encoding did not serialise into "Hello, EDN friends"`)
+				t.Logf("Serialised to %q instead", string(val))
+			}
+		default:
+			t.Errorf("Expected type to be []byte, but was %T", val)
+		}
+	}
+}
+
+func TestEncodeByteslice(t *testing.T) {
+	bs, err := Marshal([]byte{0, 6, 7, 8, 9, 128})
+	if err != nil {
+		t.Error("Couldn't marshal byte string")
+	} else if string(bs) != `#base64"AAYHCAmA"` {
+		t.Errorf("Expected edn encoding to be %q, but was %q", `#base64"AAYHCAmA"`, string(bs))
+	}
+}
+
+func TestQuickBytes(t *testing.T) {
+	f := func(bs []byte) bool {
+		enc, err := Marshal(bs)
+		if err != nil {
+			t.Log(err)
+			return false
+		}
+		var dec []byte
+		err = Unmarshal(enc, &dec)
+		if err != nil {
+			t.Log(err)
+			return false
+		}
+		return bytes.Equal(bs, dec)
+	}
+	conf := quick.Config{MaxCountScale: 200}
+	if testing.Short() {
+		conf.MaxCountScale = 10
+	}
+	if err := quick.Check(f, &conf); err != nil {
+		t.Error(err)
 	}
 }

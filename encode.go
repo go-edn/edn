@@ -582,7 +582,8 @@ func encodeByteSlice(e *encodeState, v reflect.Value) {
 		return
 	}
 	s := v.Bytes()
-	e.WriteByte('"')
+	e.ensureDelim()
+	e.WriteString(`#base64"`)
 	if len(s) < 1024 {
 		// for small buffers, using Encode directly is much faster.
 		dst := make([]byte, base64.StdEncoding.EncodedLen(len(s)))

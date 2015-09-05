@@ -1,6 +1,7 @@
 package edn
 
 import (
+	"encoding/base64"
 	"errors"
 	"reflect"
 	"sync"
@@ -72,6 +73,12 @@ func AddTagStruct(name string, val interface{}) error {
 func init() {
 	err := AddTagFn("inst", func(s string) (time.Time, error) {
 		return time.Parse(time.RFC3339, s)
+	})
+	if err != nil {
+		panic(err)
+	}
+	err = AddTagFn("base64", func(s string) ([]byte, error) {
+		return base64.StdEncoding.DecodeString(s)
 	})
 	if err != nil {
 		panic(err)

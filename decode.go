@@ -7,7 +7,6 @@ package edn
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -885,17 +884,6 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 		switch v.Kind() {
 		default:
 			d.error(&UnmarshalTypeError{"string", v.Type()})
-		case reflect.Slice:
-			// TODO: bytes
-			if v.Type() != byteSliceType {
-				d.error(&UnmarshalTypeError{"string", v.Type()})
-			}
-			b := make([]byte, base64.StdEncoding.DecodedLen(len(s)))
-			n, err := base64.StdEncoding.Decode(b, s)
-			if err != nil {
-				d.error(err)
-			}
-			v.Set(reflect.ValueOf(b[0:n]))
 		case reflect.String:
 			v.SetString(string(s))
 		case reflect.Interface:

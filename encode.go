@@ -560,7 +560,10 @@ func (me *mapSetEncoder) encode(e *encodeState, v reflect.Value) {
 	mk := v.MapKeys()
 	// not deterministic this one either.
 	for _, k := range mk {
-		me.keyEnc(e, k)
+		mval := v.MapIndex(k)
+		if mval.Kind() != reflect.Bool || mval.Bool() {
+			me.keyEnc(e, k)
+		}
 	}
 	e.WriteByte('}')
 	e.needsDelim = false

@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -112,6 +111,7 @@ func (r Rune) MarshalEDN() ([]byte, error) {
 }
 
 func encodeRune(buf *bytes.Buffer, r rune) {
+	const hex = "0123456789abcdef"
 	if !isWhitespace(r) {
 		buf.WriteByte('\\')
 		buf.WriteRune(r)
@@ -130,8 +130,12 @@ func encodeRune(buf *bytes.Buffer, r rune) {
 		case ' ':
 			buf.WriteString(`\space`)
 		default:
-			val := strconv.QuoteRuneToASCII(r)
-			buf.WriteString(val[1 : len(val)-1])
+			buf.WriteByte('\\')
+			buf.WriteByte('u')
+			buf.WriteByte(hex[r>>12&0xF])
+			buf.WriteByte(hex[r>>8&0xF])
+			buf.WriteByte(hex[r>>4&0xF])
+			buf.WriteByte(hex[r&0xF])
 		}
 	}
 }

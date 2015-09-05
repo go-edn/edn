@@ -94,7 +94,7 @@ tag:
 		case lexEndPrev:
 			break tag
 		case lexEnd: // unexpected, assuming tag which is not ending with lexEnd
-			return errUnexpeced
+			return errUnexpected
 		case lexCont:
 			endTag += rlen
 		}

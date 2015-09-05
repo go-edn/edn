@@ -19,7 +19,7 @@ import (
 var (
 	errInternal       = errors.New("Illegal internal parse state")
 	errNoneLeft       = errors.New("No more tokens to read")
-	errUnexpeced      = errors.New("Unexpected token")
+	errUnexpected     = errors.New("Unexpected token")
 	errNotImplemented = errors.New("Tags are not yet implemented")
 	errIllegalRune    = errors.New("Illegal rune form")
 )
@@ -299,7 +299,7 @@ func (d *Decoder) value(v reflect.Value) {
 	}
 	switch ttype {
 	default:
-		d.error(errUnexpeced)
+		d.error(errUnexpected)
 	case tokenSymbol, tokenKeyword, tokenString, tokenInt, tokenFloat, tokenChar:
 		d.literal(bs, ttype, v)
 	case tokenTag:
@@ -416,7 +416,7 @@ func (d *Decoder) valueInterface() interface{} {
 	}
 	switch ttype {
 	default:
-		d.error(errUnexpeced)
+		d.error(errUnexpected)
 		return nil
 	case tokenSymbol, tokenKeyword, tokenString, tokenInt, tokenFloat, tokenChar:
 		return d.literalInterface(bs, ttype)
@@ -1116,8 +1116,13 @@ func (d *Decoder) traverseValue() error {
 	}
 }
 
+type tokenStackElem struct {
+	tt    tokenType
+	count int
+}
+
 type tokenStack struct {
-	toks     []tokenType
+	toks     []tokenStackElem
 	toplevel tokenType
 }
 
@@ -1133,7 +1138,11 @@ func (t *tokenStack) done() bool {
 }
 
 func (t *tokenStack) peek() tokenType {
-	return t.toks[len(t.toks)-1]
+	return t.toks[len(t.toks)-1].tt
+}
+
+func (t *tokenStack) peekCount() int {
+	return t.toks[len(t.toks)-1].count
 }
 
 func (t *tokenStack) pop() {
@@ -1148,28 +1157,34 @@ func (t *tokenStack) push(tt tokenType) error {
 	switch tt {
 	case tokenMapStart, tokenVectorStart, tokenListStart, tokenSetStart, tokenDiscard, tokenTag:
 		// append to toks, regardless
-		t.toks = append(t.toks, tt)
+		t.toks = append(t.toks, tokenStackElem{tt, 0})
 		return nil
 	case tokenMapEnd:
-		if len(t.toks) == 0 || t.peek() != tokenMapStart || t.peek() != tokenSetStart {
-			return errUnexpeced
+		if len(t.toks) == 0 || (t.peek() != tokenMapStart && t.peek() != tokenSetStart) {
+			return errUnexpected
 		}
 		t.pop()
 	case tokenListEnd:
 		if len(t.toks) == 0 || t.peek() != tokenListStart {
-			return errUnexpeced
+			return errUnexpected
 		}
 		t.pop()
 	case tokenVectorEnd:
-		if len(t.toks) == 0 || t.peek() != tokenVectorEnd {
-			return errUnexpeced
+		if len(t.toks) == 0 || t.peek() != tokenVectorStart {
+			return errUnexpected
 		}
 		t.pop()
 	default:
 	}
+	if len(t.toks) > 0 {
+		t.toks[len(t.toks)-1].count++
+	}
 	// popping of discards and tags
 	for len(t.toks) > 0 && t.peek() == tokenTag {
 		t.pop()
+		if len(t.toks) > 0 {
+			t.toks[len(t.toks)-1].count++
+		}
 	}
 	if len(t.toks) > 0 && t.peek() == tokenDiscard {
 		t.pop()

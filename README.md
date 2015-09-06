@@ -7,9 +7,9 @@ JSON, YAML, or XML.
 This library is heavily influenced by the JSON library that ships with Go, and
 people familiar with that package should know the basics of how this library
 works. In fact, this should be close to a drop-in replacement for the `json`
-package where you only use basic functionality.
+package if you only use basic functionality.
 
-*This implementation has an almost-working decoder, but lacks proper tag literals*
+This implementation is fully working and (presumably) stable.
 
 ## Quickstart
 
@@ -18,7 +18,10 @@ JSON with EDN (and the JSON data with EDN data), and the text makes almost
 perfect sense. The only caveat is that, since EDN is more general than JSON, go-edn
 stores arbitrary maps on the form `map[interface{}]interface{}`.
 
-go-edn also ships with keywords and symbols as types.
+go-edn also ships with keywords, symbols and tags as types.
+
+For a longer introduction on how to use the library, see
+[introduction.md](docs/introduction.md).
 
 ## Example Usage
 

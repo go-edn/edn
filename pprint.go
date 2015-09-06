@@ -2,6 +2,7 @@ package edn
 
 import (
 	"bytes"
+	"unicode/utf8"
 )
 
 func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
@@ -48,7 +49,9 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 		}
 		switch tt {
 		case tokenMapStart, tokenVectorStart, tokenListStart, tokenSetStart:
-			if depth > 0 {
+			if prevType == tokenMapStart {
+				dst.WriteByte(' ')
+			} else if depth > 0 {
 				newline(dst, prefix, indent, depth)
 			}
 			dst.Write(bs)
@@ -101,6 +104,100 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 				dst.Write(bs)
 			}
 		}
+		if tokStack.done() {
+			break
+		}
+	}
+	return nil
+}
+
+type PPrintOpts struct {
+	RightMargin int
+	MiserWidth  int
+}
+
+func pprintIndent(dst *bytes.Buffer, shift int) {
+	dst.WriteByte('\n')
+	for i := 0; i < shift; i++ {
+		dst.WriteByte(' ') // TODO: This may be slower than caching the size as a byte slice
+	}
+}
+
+func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
+	origLen := dst.Len()
+	var lex lexer
+	lex.reset()
+	tokStack := newTokenStack()
+	shift := []int{0}
+	col := 0
+	prevMap := false
+	prevMapStart := 0
+	curType := tokenError
+	curSize := 0
+	d := NewDecoder(bytes.NewBuffer(src))
+	for {
+		bs, tt, err := d.nextToken()
+		if err != nil {
+			dst.Truncate(origLen)
+			return err
+		}
+		err = tokStack.push(tt)
+		if err != nil {
+			dst.Truncate(origLen)
+			return err
+		}
+		prevType := curType
+		prevSize := curSize
+		if len(tokStack.toks) > 0 {
+			curType = tokStack.peek()
+			curSize = tokStack.peekCount()
+		}
+		// Indentation
+		switch tt {
+		case tokenVectorEnd, tokenListEnd, tokenMapEnd:
+		default:
+			switch prevType {
+			case tokenMapStart:
+				if prevSize%2 == 0 && prevSize > 0 {
+					dst.WriteByte(',')
+					pprintIndent(dst, shift[len(shift)-1])
+					col = shift[len(shift)-1]
+				} else if prevSize%2 == 1 { // We're a value, add a space after the key
+					dst.WriteByte(' ')
+					col++
+				}
+			case tokenSetStart, tokenVectorStart, tokenListStart:
+				if prevMap {
+					// begin on new line where prevMap started
+					// This will look so strange for heterogenous maps.
+					pprintIndent(dst, prevMapStart)
+					col = prevMapStart
+				} else if prevSize > 0 {
+					dst.WriteByte(' ')
+					col++
+				}
+			}
+		}
+		switch tt {
+		case tokenMapStart, tokenVectorStart, tokenListStart, tokenSetStart:
+			dst.Write(bs)
+			col += len(bs)             // either 2 or 1
+			shift = append(shift, col) // we only use maps for now, but we'll utilise this more thoroughly later on
+		case tokenVectorEnd, tokenListEnd, tokenMapEnd: // tokenSetEnd == tokenMapEnd
+			dst.WriteByte(bs[0]) // all of these are of length 1 in bytes, so this is ok
+			prevMapStart = shift[len(shift)-1] - 1
+			shift = shift[:len(shift)-1]
+		case tokenTag:
+			bslen := utf8.RuneCount(bs)
+			dst.Write(bs)
+			dst.WriteByte(' ')
+			col += bslen + 1
+		default:
+			bslen := utf8.RuneCount(bs)
+			dst.Write(bs)
+			col += bslen
+		}
+		prevMap = tt == tokenMapEnd
 		if tokStack.done() {
 			break
 		}

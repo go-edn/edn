@@ -249,8 +249,37 @@ will emit the following EDN:
 These options have no effect on decoding, although it is intended to make the
 decoding rules more strict in the future.
 
+### Characters/Runes
+
+The Go programming language ships with the rune type, and as the EDN
+specification specifies that characters are values, it seems tempting to try it
+out:
+
+```go
+bs, err := edn.MarshallPPrint([]rune{'h', 'e', 'l', 'l', 'o'}, nil)
+```
+
+However, the result is slightly surprising:
+
+```clj
+[104 101 108 108 111]
+```
+
+What happened? The rune type is actually just an alias for int32, and so all
+reflection will believe this is an int32 slice. It's easier to see if you use
+the fmt package:
+
+```go
+fmt.Printf("%#v\n", []rune{'h', 'e', 'l', 'l', 'o'})
+// prints []int32{104, 101, 108, 108, 111}
+```
+
+This is slightly bothersome, but you can bypass this in two ways. One option is
+by specifying the `rune` option for rune fields in the edn tag options. The
+other option is, as you may guess, by replacing the rune type in your
+application by the `edn.Rune` type.
+
 ## MarshalEDN and UnmarshalEDN
 
-
-
 ## EDN Tags
+

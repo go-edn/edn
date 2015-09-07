@@ -147,10 +147,110 @@ as the JSON package)
 
 ## Struct Tags
 
+There are a lot of different ways to tag struct fields to enable different kinds
+of semantics, most of it related to marshalling. Let's have a look at the
+different options:
+
+```go
+type Organisation struct {
+	OrgName int `edn:"org-name"`
+	Type string `edn:",omitempty"`
+    UserIds []int64 `edn:"user-ids,list"`
+    Plugins map[string]bool
+    InternalData []byte `edn:"-"`
+}
+```
+
+By standard rules, the `OrgName` field would be matched against the keyword
+`:orgname`, the symbol `orgname`, the string `"orgname"` or any case insensitive
+match of the previous mentioned. The first argument to the `edn` field tag is
+always the name of the key to match against. OrgName will in this case match
+against `:org-name`, `org-name` or `"org-name"` instead of the standard rules.
 
 
-### Sets
+```go
+	Type string `edn:",omitempty"`
+```
+
+The next field, `Type`, has no special name tied to it, consequently we leave
+the name argument empty. To specify more than one argument, we delimit them by
+using commas. The remaining arguments can be in any order – the only requirement
+is that the name argument is the first.
+
+`omitempty` omits the field if the value it points to is the zero value of its
+type. For strings, this means that the string equals `""`. For all numbers, it
+means that the number is equal to `0`, and for maps, pointers and slices, if
+they are `nil` they are considered empty.
+
+```go
+    UserIds []int64 `edn:"user-ids,list"`
+```
+
+The `list` argument specifies that the given slice or array is printed as an EDN
+list, rather than an EDN vector. So, if `UserIds` is `[]int{1, 2, 3}`, it will
+be encoded as `(1 2 3)` instead of the usual `[1 2 3]`.
+
+You can also use the `edn.List` type to encode arbitrary slices and arrays as
+lists instead of vectors.
+
+```go
+    Plugins map[string]bool
+```
+
+The next field does not contain any tags, but shows a feature of go-edn we
+haven't looked at yet: Sets. Any map of type `map[T]bool` or `map[T]struct{}`
+will by default encode into sets. So if the plugin value is
+`map[string]bool{"foo": true, "bar", true}`, it will encode it as `#{"foo"
+"bar"}` instead of `{"foo" true, "bar" true}`.
+
+Sometimes, this may be not be what you want -- perhaps false values actually
+mean something other then absence, in which case you can turn on default map
+encoding by setting the tag `map`. In our case, this means attaching the string
+`` `edn:",map"` `` to the `Plugins` field.
+
+You can also enforce the set notation if you want to, by setting the option
+`set`. This has currently no effect, but it's intended to convert slices and
+structs with only boolean values to sets in the future.
+
+```go
+    InternalData []byte `edn:"-"`
+```
+
+The last field is intended to be unexported during edn encoding, and is
+therefore the name is marked set to `-`. This clashes with the keyword, symbol
+and string key `:-`, `-` and `"-"` respectively, but this is assumed to be a
+rare case and can be bypassed with the MarshalEDN and UnmarshalEDN functions.
+
+### Keys
+
+By default, keys in structs will be encoded as keywords. However, you can also
+emit symbols and strings by setting the respective tags `sym` and `str`. You can
+also set the keyword tag `key`, although this has no effect as of this writing.
+
+```go
+type Data {
+	Value string
+}
+
+func main() {
+	bs, _ := edn.MarshalPPrint(Data{"foo"}, nil)
+	fmt.Println(string(bs))
+}
+```
+
+will emit the following EDN:
+
+```clj
+{:value "foo"}  ;; if no edn tag is specified or is `edn:",key"`
+{value "foo"}   ;; if the edn tag is `edn:",sym"`
+{"value" "foo"} ;; if the edn tag is `edn:",str"`
+```
+
+These options have no effect on decoding, although it is intended to make the
+decoding rules more strict in the future.
 
 ## MarshalEDN and UnmarshalEDN
+
+
 
 ## EDN Tags

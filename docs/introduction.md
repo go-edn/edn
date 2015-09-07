@@ -77,3 +77,80 @@ which would yield
  :email "alice@example.com",
  :registered 1441576365}
 ```
+
+Like the JSON package, only data that can be represented as EDN values can be
+encoded. This means that channels, complex, and function types cannot be
+encoded. As EDN convey values, you do not have reference types, and as such,
+marshalling circular types will lead to an infinite loop.
+
+*Unlike* the JSON package, map keys can be any legal EDN value, provided it is
+not equal to any other key:
+
+```go
+playerLocations := map[[2]int]string{
+	[2]int{0, 2}:  "Alice",
+	[2]int{1, -3}: "Thao",
+}
+bs, _ := MarshalPPrint(playerLocations, nil)
+```
+
+will happily be encoded into
+
+```clojure
+{[0 2] "Alice",
+ [1 -3] "Thao"}
+```
+
+## Decoding
+
+Decoding is done using the Unmarshal function
+
+```go
+func Unmarshal(data []byte, v interface{}) error
+```
+
+As with the JSON package, you have to specify where to store the contents first,
+then call `edn.Unmarshal` with the byte slice to decode along with a pointer to
+the location you want to store the data:
+
+```go
+var u User
+err := edn.Unmarshal(bs, &u)
+```
+
+If our content is any of the results from Marshal call shown earlier, then `u`
+will contain contents as if assigned like this:
+
+```go
+u := User{
+	Username: "alice",
+	Email: "alice@example.com",
+	Registered: 1441576365,
+}
+```
+
+go-edn utilises reflection to detect which struct field, if any, it should
+attach to a value in an EDN-map. The priority of which field a value should be
+assigned to (if any), is as follows:
+
+1. Fields with exported tags that matches the key exactly
+2. Exported fields in lowercase that matches the key
+3. Exported fields matching, case insensitive
+
+go-edn will look for both keys, symbols and strings keys that match fields.
+Currently, if multiple keys maps to the same value, the latest value read is
+used.
+
+If go-edn mathes a particular field with a value, the field is ignored. If the
+key does not match a particular field, the value is ignored. (The same semantics
+as the JSON package)
+
+## Struct Tags
+
+
+
+### Sets
+
+## MarshalEDN and UnmarshalEDN
+
+## EDN Tags

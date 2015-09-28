@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -341,6 +342,7 @@ func typeEncoder(t reflect.Type, tagType tagType) encoderFunc {
 
 var (
 	marshalerType = reflect.TypeOf(new(Marshaler)).Elem()
+	instType      = reflect.TypeOf((*time.Time)(nil)).Elem()
 )
 
 // newTypeEncoder constructs an encoderFunc for a type.
@@ -361,6 +363,8 @@ func newTypeEncoder(t reflect.Type, tagType tagType, allowAddr bool) encoderFunc
 		return bigIntEncoder
 	case bigFloatType:
 		return bigFloatEncoder
+	case instType:
+		return instEncoder
 	}
 
 	switch t.Kind() {
@@ -488,6 +492,12 @@ func bigFloatEncoder(e *encodeState, v reflect.Value) {
 	e.Write(b)
 	e.WriteByte('M')
 	e.needsDelim = true
+}
+
+func instEncoder(e *encodeState, v reflect.Value) {
+	e.ensureDelim()
+	t := v.Interface().(time.Time)
+	e.Write([]byte(t.Format(`#inst"` + time.RFC3339Nano + `"`)))
 }
 
 type floatEncoder int // number of bits

@@ -73,7 +73,7 @@ func AddTagStruct(name string, val interface{}) error {
 
 func init() {
 	err := AddTagFn("inst", func(s string) (time.Time, error) {
-		return time.Parse(time.RFC3339, s)
+		return time.Parse(time.RFC3339Nano, s)
 	})
 	if err != nil {
 		panic(err)

@@ -75,7 +75,7 @@ func TestReadStructWithTag(t *testing.T) {
 func TestReadTime(t *testing.T) {
 	var v interface{}
 	instStr := `#inst "2015-08-29T21:28:34.311-00:00"`
-	inst, _ := time.Parse(time.RFC3339, "2015-08-29T21:28:34.311-00:00")
+	inst, _ := time.Parse(time.RFC3339Nano, "2015-08-29T21:28:34.311-00:00")
 	err := UnmarshalString(instStr, &v)
 	if err != nil {
 		t.Errorf("Couldn't unmarshal interface (time tag): %s", err.Error())
@@ -91,6 +91,17 @@ func TestReadTime(t *testing.T) {
 		default:
 			t.Errorf("Expected type to be time.Time, but was %T", ednInst)
 		}
+	}
+}
+
+func TestWriteTime(t *testing.T) {
+	instStr := `#inst"2015-08-29T21:28:34.311Z"`
+	inst, _ := time.Parse(time.RFC3339Nano, "2015-08-29T21:28:34.311Z")
+	bs, err := Marshal(inst)
+	if err != nil {
+		t.Errorf("Expected no error when writing time, but got back %s", err.Error())
+	} else if string(bs) != instStr {
+		t.Errorf("Expected %s to be equal to %s, but wasn't", string(bs), instStr)
 	}
 }
 
@@ -234,12 +245,12 @@ func TestAssignPtrStruct(t *testing.T) {
 
 func TestAssignFuncPtr(t *testing.T) {
 	var ednInst time.Time
-	inst, _ := time.Parse(time.RFC3339, "2124-05-13T14:51:64.127-00:00")
-	j := `#inst "2124-05-13T14:51:64.127-00:00"`
+	inst, _ := time.Parse(time.RFC3339Nano, "2124-05-13T14:51:39.127-00:00")
+	j := `#inst "2124-05-13T14:51:39.127-00:00"`
 	d := NewDecoder(bytes.NewBufferString(j))
 	// override original inst function
 	d.AddTagFn("inst", func(s string) (*time.Time, error) {
-		val, err := time.Parse(time.RFC3339, s)
+		val, err := time.Parse(time.RFC3339Nano, s)
 		if err != nil {
 			return nil, err
 		}

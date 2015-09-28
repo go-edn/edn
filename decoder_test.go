@@ -5,6 +5,7 @@
 package edn
 
 import (
+	"math/big"
 	"reflect"
 	"testing"
 )
@@ -21,6 +22,56 @@ func TestIntReading(t *testing.T) {
 			t.Errorf("int64 '%s' failed, but expected success", istr)
 		} else if n != ints[i] {
 			t.Errorf("int64 '%s' was decoded to %d, but expected %d", istr, n, ints[i])
+		}
+	}
+}
+
+func TestBigIntReading(t *testing.T) {
+	const huge = "32317006071311007300714876688669951960444102669715484032130345427524655138867890893197201411522913463688717960921898019494119559150490921095088152386448283120630877367300996091750197750389652106796057638384067568276792218642619756161838094338476170470581645852036305042887575891541065808607552399123930385521914333389668342420684974786564569494856176035326322058077805659331026192708460314150258592864177116725943603718461857357598351152301645904403697613233287231227125684710820209725157101726931323469678542580656697935045997268352998638215525166389647960126939249806625440700685819469589938384356951833568218188663"
+
+	bigIntStrs := [...]string{"0", "1", "-1N", "0N", huge + "N"}
+
+	_1 := func(v *big.Int, _ bool) *big.Int { return v }
+	bigInts := [...]*big.Int{
+		big.NewInt(0), big.NewInt(1), big.NewInt(-1),
+		big.NewInt(0), _1(big.NewInt(0).SetString(huge, 10)),
+	}
+	for i, istr := range bigIntStrs {
+		var n *big.Int
+		err := UnmarshalString(istr, &n)
+		if err != nil {
+			t.Errorf("*big.Int '%s' failed, but expected success", istr)
+		} else if n.Cmp(bigInts[i]) != 0 {
+			t.Errorf("*big.Int '%s' was decoded to %s, but expected %s", istr, n, bigInts[i])
+		}
+	}
+}
+
+func TestBigFloat(t *testing.T) {
+	const huge = "123456789123456789123456789123456789123456789123456789.123456789"
+
+	bigFloatStrs := [...]string{"0", "1M", "-0.1M", "1.1e-10M", huge + "M"}
+
+	bigFloat := func(s string) *big.Float {
+		f, _, err := big.ParseFloat(s, 10, 192, big.ToNearestEven)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
+
+	bigFloats := [...]*big.Float{
+		bigFloat("0"), bigFloat("1"), bigFloat("-0.1"),
+		bigFloat("1.1e-10"), bigFloat(huge),
+	}
+	for i, istr := range bigFloatStrs {
+		var n *big.Float
+		err := UnmarshalString(istr, &n)
+		if err != nil {
+			t.Errorf("*big.Float '%s' failed, but expected success", istr)
+			t.Error(err)
+		} else if n.Cmp(bigFloats[i]) != 0 {
+			t.Errorf("*big.Float '%s' was decoded to %s, but expected %s", istr, n, bigFloats[i])
 		}
 	}
 }

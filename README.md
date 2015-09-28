@@ -63,6 +63,12 @@ If you want to write that user again, just `Marshal` it:
 	bs, err := edn.Marshal(user)
 ```
 
+## Dependencies
+
+go-edn has no external dependencies, except the default Go library. However, as
+it depends on `math/big.Float`, go-edn requires Go 1.5 or higher.
+
+
 ## License
 
 Copyright © 2015 Jean Niklas L'orange

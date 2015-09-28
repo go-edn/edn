@@ -3,6 +3,7 @@ package edn
 import (
 	"encoding/base64"
 	"errors"
+	"math/big"
 	"reflect"
 	"sync"
 	"time"
@@ -83,4 +84,14 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+type MathContext struct {
+	Precision uint
+	Mode      big.RoundingMode
+}
+
+var GlobalMathContext = MathContext{
+	Mode:      big.ToNearestEven,
+	Precision: 192,
 }

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -52,6 +53,17 @@ func (d *Decoder) UseTagMap(tm TagMap) {
 	d.tagmap = tm
 }
 
+func (d *Decoder) UseMathContext(mc MathContext) {
+	d.mc = &mc
+}
+
+func (d *Decoder) mathContext() *MathContext {
+	if d.mc != nil {
+		return d.mc
+	}
+	return &GlobalMathContext
+}
+
 // Unmarshaler is the interface implemented by objects that can unmarshal an EDN
 // description of themselves. The input can be assumed to be a valid encoding of
 // an EDN value. UnmarshalEDN must copy the EDN data if it wishes to retain the
@@ -79,6 +91,7 @@ type Decoder struct {
 	savedError error
 	rd         *bufio.Reader
 	tagmap     TagMap
+	mc         *MathContext
 	// parser-specific
 	prevSlice []byte
 	prevTtype tokenType
@@ -741,6 +754,9 @@ var symbolType = reflect.TypeOf(Symbol(""))
 var keywordType = reflect.TypeOf(Keyword(""))
 var byteSliceType = reflect.TypeOf([]byte(nil))
 
+var bigFloatType = reflect.TypeOf((*big.Float)(nil)).Elem()
+var bigIntType = reflect.TypeOf((*big.Int)(nil)).Elem()
+
 func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 	wantptr := ttype == tokenSymbol && bytes.Equal(nilByte, bs)
 	u, pv := d.indirect(v, wantptr)
@@ -791,26 +807,53 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 		}
 	case tokenInt:
 		var s string
+		isBig := false
 		if bs[len(bs)-1] == 'N' { // can end with N, which we promptly ignore
 			// TODO: If the user expects a float and receives what is perceived as an
 			// int (ends with N), what is the sensible thing to do?
 			s = string(bs[:len(bs)-1])
+			isBig = true
 		} else {
 			s = string(bs)
 		}
 		switch v.Kind() {
 		default:
-			d.error(&UnmarshalTypeError{"int", v.Type()})
-		case reflect.Interface:
-			n, err := strconv.ParseInt(s, 10, 64)
-			if err != nil {
-				d.error(&UnmarshalTypeError{"int " + s, reflect.TypeOf(int64(0))})
-			}
-			if v.NumMethod() != 0 {
+			switch v.Type() {
+			case bigIntType:
+				bi := v.Addr().Interface().(*big.Int)
+				_, ok := bi.SetString(s, 10)
+				if !ok {
+					d.error(errInternal)
+				}
+			case bigFloatType:
+				mc := d.mathContext()
+				bf := v.Addr().Interface().(*big.Float)
+				bf = bf.SetPrec(mc.Precision).SetMode(mc.Mode)
+				_, _, err := bf.Parse(s, 10)
+				if err != nil { // grumble grumble
+					d.error(errInternal)
+				}
+			default:
 				d.error(&UnmarshalTypeError{"int", v.Type()})
 			}
-			v.Set(reflect.ValueOf(n))
-
+		case reflect.Interface:
+			if !isBig {
+				n, err := strconv.ParseInt(s, 10, 64)
+				if err != nil {
+					d.error(&UnmarshalTypeError{"int " + s, reflect.TypeOf(int64(0))})
+				}
+				if v.NumMethod() != 0 {
+					d.error(&UnmarshalTypeError{"int", v.Type()})
+				}
+				v.Set(reflect.ValueOf(n))
+			} else {
+				bi := new(big.Int)
+				_, ok := bi.SetString(s, 10)
+				if !ok {
+					d.error(errInternal)
+				}
+				v.Set(reflect.ValueOf(bi))
+			}
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(s, 10, 64)
 			if err != nil || v.OverflowInt(n) {
@@ -835,24 +878,46 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 
 	case tokenFloat:
 		var s string
+		isBig := false
 		if bs[len(bs)-1] == 'M' { // can end with M, which we promptly ignore
 			s = string(bs[:len(bs)-1])
+			isBig = true
 		} else {
 			s = string(bs)
 		}
 		switch v.Kind() {
 		default:
-			d.error(&UnmarshalTypeError{"float", v.Type()})
-		case reflect.Interface:
-			n, err := strconv.ParseFloat(s, 64)
-			if err != nil {
-				d.error(&UnmarshalTypeError{"float " + s, reflect.TypeOf(float64(0))})
-			}
-			if v.NumMethod() != 0 {
+			switch v.Type() {
+			case bigFloatType:
+				mc := d.mathContext()
+				bf := v.Addr().Interface().(*big.Float)
+				bf = bf.SetPrec(mc.Precision).SetMode(mc.Mode)
+				_, _, err := bf.Parse(s, 10)
+				if err != nil { // grumble grumble
+					d.error(errInternal)
+				}
+			default:
 				d.error(&UnmarshalTypeError{"float", v.Type()})
 			}
-			v.Set(reflect.ValueOf(n))
-
+		case reflect.Interface:
+			if !isBig {
+				n, err := strconv.ParseFloat(s, 64)
+				if err != nil {
+					d.error(&UnmarshalTypeError{"float " + s, reflect.TypeOf(float64(0))})
+				}
+				if v.NumMethod() != 0 {
+					d.error(&UnmarshalTypeError{"float", v.Type()})
+				}
+				v.Set(reflect.ValueOf(n))
+			} else {
+				mc := d.mathContext()
+				bf := new(big.Float).SetPrec(mc.Precision).SetMode(mc.Mode)
+				_, _, err := bf.Parse(s, 10)
+				if err != nil { // grumble grumble
+					d.error(errInternal)
+				}
+				v.Set(reflect.ValueOf(bf))
+			}
 		case reflect.Float32, reflect.Float64:
 			n, err := strconv.ParseFloat(s, v.Type().Bits())
 			if err != nil || v.OverflowFloat(n) {

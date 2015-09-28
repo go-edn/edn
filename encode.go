@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"math"
+	"math/big"
 	"reflect"
 	"runtime"
 	"sort"
@@ -221,6 +222,14 @@ type encodeState struct {
 	bytes.Buffer // accumulated output
 	scratch      [64]byte
 	needsDelim   bool
+	mc           *MathContext
+}
+
+func (e *encodeState) mathContext() *MathContext {
+	if e.mc != nil {
+		return e.mc
+	}
+	return &GlobalMathContext
 }
 
 var encodeStatePool sync.Pool
@@ -346,6 +355,14 @@ func newTypeEncoder(t reflect.Type, tagType tagType, allowAddr bool) encoderFunc
 		}
 	}
 
+	// Handle specific types first
+	switch t {
+	case bigIntType:
+		return bigIntEncoder
+	case bigFloatType:
+		return bigFloatEncoder
+	}
+
 	switch t.Kind() {
 	case reflect.Bool:
 		return boolEncoder
@@ -449,6 +466,27 @@ func uintEncoder(e *encodeState, v reflect.Value) {
 	e.ensureDelim()
 	b := strconv.AppendUint(e.scratch[:0], v.Uint(), 10)
 	e.Write(b)
+	e.needsDelim = true
+}
+
+func bigIntEncoder(e *encodeState, v reflect.Value) {
+	e.ensureDelim()
+	bi := v.Interface().(big.Int)
+	b := []byte(bi.String())
+	e.Write(b)
+	e.WriteByte('N')
+	e.needsDelim = true
+}
+
+func bigFloatEncoder(e *encodeState, v reflect.Value) {
+	e.ensureDelim()
+	bf := new(big.Float)
+	mc := e.mathContext()
+	val := v.Interface().(big.Float)
+	bf.Set(&val).SetMode(mc.Mode)
+	b := []byte(bf.Text('g', int(mc.Precision)))
+	e.Write(b)
+	e.WriteByte('M')
 	e.needsDelim = true
 }
 

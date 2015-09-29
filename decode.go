@@ -25,34 +25,108 @@ var (
 	errIllegalRune    = errors.New("Illegal rune form")
 )
 
+// Unmarshal parses the EDN-encoded data and stores the result in the value
+// pointed to by v.
+//
+// Unmarshal uses the inverse of the encodings that Marshal uses, allocating
+// maps, slices, and pointers as necessary, with the following additional rules:
+//
+// First, if the value to store the result into implements edn.Unmarshaler, it
+// is called.
+//
+// If the value is tagged and the tag is known, the EDN value is translated into
+// the input of the tag convert function. If no error happens during converting,
+// the result of the conversion is then coerced into v if possible.
+//
+// To unmarshal EDN into a pointer, Unmarshal first handles the case of the EDN
+// being the EDN literal nil. In that case, Unmarshal sets the pointer to nil.
+// Otherwise, Unmarshal unmarshals the EDN into the value pointed at by the
+// pointer. If the pointer is nil, Unmarshal allocates a new value for it to
+// point to.
+//
+// To unmarshal EDN into a struct, Unmarshal matches incoming object
+// keys to the keys used by Marshal (either the struct field name or its tag),
+// preferring an exact match but also accepting a case-insensitive match.
+//
+// To unmarshal EDN into an interface value,
+// Unmarshal stores one of these in the interface value:
+//
+//	bool, for EDN booleans
+//	float64, for EDN floats
+//  int64, for EDN integers
+//  int32, for EDN characters
+//	string, for EDN strings
+//	[]interface{}, for EDN vectors and lists
+//	map[interface{}]interface{}, for EDN maps
+//  map[interface{}]bool, for EDN sets
+//	nil for EDN nil
+//  edn.Tag for unknown EDN tagged elements
+//  T for known EDN tagged elements, where T is the result of the converter function
+//
+// To unmarshal an EDN vector/list into a slice, Unmarshal resets the slice to
+// nil and then appends each element to the slice.
+//
+// To unmarshal an EDN map into a Go map, Unmarshal replaces the map
+// with an empty map and then adds key-value pairs from the object to
+// the map.
+//
+// If a EDN value is not appropriate for a given target type, or if a EDN number
+// overflows the target type, Unmarshal skips that field and completes the
+// unmarshalling as best it can. If no more serious errors are encountered,
+// Unmarshal returns an UnmarshalTypeError describing the earliest such error.
+//
+// The EDN nil value unmarshals into an interface, map, pointer, or slice by
+// setting that Go value to nil.
+//
+// When unmarshaling strings, invalid UTF-8 or invalid UTF-16 surrogate pairs
+// are not treated as an error. Instead, they are replaced by the Unicode
+// replacement character U+FFFD.
+//
 func Unmarshal(data []byte, v interface{}) error {
 	return newDecoder(bufio.NewReader(bytes.NewBuffer(data))).Decode(v)
 }
 
+// UnmarshalString works like Unmarshal, but accepts a string as input instead
+// of a byte slice.
 func UnmarshalString(data string, v interface{}) error {
 	return newDecoder(bufio.NewReader(bytes.NewBufferString(data))).Decode(v)
 }
 
+// NewDecoder returns a new decoder that reads from r.
+//
+// The decoder introduces its own buffering and may read data from r beyond the
+// EDN values requested.
 func NewDecoder(r io.Reader) *Decoder {
 	return newDecoder(bufio.NewReader(r))
 }
 
+// Buffered returns a reader of the data remaining in the Decoder's buffer. The
+// reader is valid until the next call to Decode.
 func (d *Decoder) Buffered() *bufio.Reader {
 	return d.rd
 }
 
+// AddTagFn adds a tag function to the decoder's TagMap. Note that TagMaps are
+// mutable: If Decoder A and B share TagMap, then adding a tag function to one
+// may modify both.
 func (d *Decoder) AddTagFn(tagname string, fn interface{}) error {
 	return d.tagmap.AddTagFn(tagname, fn)
 }
 
+// AddTagStruct adds a tag struct to the decoder's TagMap. Note that TagMaps are
+// mutable: If Decoder A and B share TagMap, then adding a tag struct to one
+// may modify both.
 func (d *Decoder) AddTagStruct(tagname string, example interface{}) error {
 	return d.tagmap.AddTagStruct(tagname, example)
 }
 
+// UseTagMap sets the TagMap provided as the TagMap for this decoder.
 func (d *Decoder) UseTagMap(tm TagMap) {
 	d.tagmap = tm
 }
 
+// UseMathContext sets the given math context as default math context for this
+// decoder.
 func (d *Decoder) UseMathContext(mc MathContext) {
 	d.mc = &mc
 }
@@ -68,8 +142,6 @@ func (d *Decoder) mathContext() *MathContext {
 // description of themselves. The input can be assumed to be a valid encoding of
 // an EDN value. UnmarshalEDN must copy the EDN data if it wishes to retain the
 // data after returning.
-//
-// (This is not available yet, as it's not working properly.)
 type Unmarshaler interface {
 	UnmarshalEDN([]byte) error
 }
@@ -86,6 +158,7 @@ const (
 	parseDiscard
 )
 
+// A Decoder reads and decodes EDN objects from an input stream.
 type Decoder struct {
 	lex        *lexer
 	savedError error
@@ -130,6 +203,11 @@ func (e *UnmarshalTypeError) Error() string {
 	return "edn: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
+// Decode reads the next EDN-encoded value from its input and stores it in the
+// value pointed to by v.
+//
+// See the documentation for Unmarshal for details about the conversion of EDN
+// into a Go value.
 func (d *Decoder) Decode(val interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -18,6 +18,8 @@ var (
 
 var globalTags TagMap
 
+// A TagMap contains mappings from tag literals to functions and structs that is
+// used when decoding.
 type TagMap struct {
 	sync.RWMutex
 	m map[string]reflect.Value
@@ -25,7 +27,10 @@ type TagMap struct {
 
 var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
-func (tm *TagMap) AddTagFn(name string, fn interface{}) error {
+// AddTagFn adds fn as a converter function for tagname tags to this TagMap. fn
+// must have the signature func(T) (U, error), where T is the expected input
+// type and U is the output type.
+func (tm *TagMap) AddTagFn(tagname string, fn interface{}) error {
 	// TODO: check name
 	rfn := reflect.ValueOf(fn)
 	rtyp := rfn.Type()
@@ -36,7 +41,7 @@ func (tm *TagMap) AddTagFn(name string, fn interface{}) error {
 		// ok to have variadic arity?
 		return ErrMismatchArities
 	}
-	return tm.addVal(name, rfn)
+	return tm.addVal(tagname, rfn)
 }
 
 func (tm *TagMap) addVal(name string, val reflect.Value) error {
@@ -54,21 +59,29 @@ func (tm *TagMap) addVal(name string, val reflect.Value) error {
 	}
 }
 
-func AddTagFn(name string, fn interface{}) error {
-	return globalTags.AddTagFn(name, fn)
+// AddTagFn adds fn as a converter function for tagname tags to the global
+// TagMap. fn must have the signature func(T) (U, error), where T is the
+// expected input type and U is the output type.
+func AddTagFn(tagname string, fn interface{}) error {
+	return globalTags.AddTagFn(tagname, fn)
 }
 
-func (tm *TagMap) AddTagStruct(name string, val interface{}) error {
+// AddTagStructs adds the struct as a matching struct for tagname tags to this
+// TagMap. val can not be a channel, function, interface or an unsafe pointer.
+func (tm *TagMap) AddTagStruct(tagname string, val interface{}) error {
 	rstruct := reflect.ValueOf(val)
 	switch rstruct.Type().Kind() {
 	case reflect.Invalid, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer:
 		return ErrNotConcrete
 	}
-	return tm.addVal(name, rstruct)
+	return tm.addVal(tagname, rstruct)
 }
 
-func AddTagStruct(name string, val interface{}) error {
-	return globalTags.AddTagStruct(name, val)
+// AddTagStructs adds the struct as a matching struct for tagname tags to the
+// global TagMap. val can not be a channel, function, interface or an unsafe
+// pointer.
+func AddTagStruct(tagname string, val interface{}) error {
+	return globalTags.AddTagStruct(tagname, val)
 }
 
 func init() {
@@ -84,11 +97,15 @@ func init() {
 	}
 }
 
+// A MathContext specifies the precision and rounding mode for
+// `math/big.Float`s when decoding.
 type MathContext struct {
 	Precision uint
 	Mode      big.RoundingMode
 }
 
+// The GlobalMathContext is the global MathContext. It is used if no other
+// context is provided.
 var GlobalMathContext = MathContext{
 	Mode:      big.ToNearestEven,
 	Precision: 192,

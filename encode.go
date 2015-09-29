@@ -289,6 +289,8 @@ func (e *UnsupportedTypeError) Error() string {
 	return "edn: unsupported type: " + e.Type.String()
 }
 
+// An UnsupportedValueError is returned by Marshal when attempting to encode an
+// unsupported value. Examples include the float values NaN and Infinity.
 type UnsupportedValueError struct {
 	Value reflect.Value
 	Str   string
@@ -317,6 +319,8 @@ type encodeState struct {
 	mc           *MathContext
 }
 
+// mathContext returns the math context to use. If not set in the encodeState,
+// the global math context is used.
 func (e *encodeState) mathContext() *MathContext {
 	if e.mc != nil {
 		return e.mc

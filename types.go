@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// A Keyword is an EDN keyword without : prepended in front.
 type Keyword string
 
 func (k Keyword) String() string {
@@ -21,6 +22,7 @@ func (k Keyword) MarshalEDN() ([]byte, error) {
 	return []byte(k.String()), nil
 }
 
+// A Symbol is an EDN symbol.
 type Symbol string
 
 func (s Symbol) String() string {
@@ -31,26 +33,8 @@ func (s Symbol) MarshalEDN() ([]byte, error) {
 	return []byte(s), nil
 }
 
-type Vector []interface{}
-
-func (v Vector) String() string {
-	vals := []string{}
-	for _, val := range v {
-		vals = append(vals, fmt.Sprint(val))
-	}
-	return "[" + strings.Join(vals, " ") + "]"
-}
-
-type List []interface{}
-
-func (l List) String() string {
-	vals := []string{}
-	for _, val := range l {
-		vals = append(vals, fmt.Sprint(val))
-	}
-	return "(" + strings.Join(vals, " ") + ")"
-}
-
+// A Tag is a tagged value. The Tagname represents the name of the tag, and the
+// Value is the value of the element.
 type Tag struct {
 	Tagname string
 	Value   interface{}
@@ -102,6 +86,8 @@ tag:
 	return Unmarshal(bs[endTag:], &t.Value)
 }
 
+// A Rune type is a wrapper for a rune. It can be used to encode runes as
+// characters instead of int32 values.
 type Rune rune
 
 func (r Rune) MarshalEDN() ([]byte, error) {
@@ -138,24 +124,4 @@ func encodeRune(buf *bytes.Buffer, r rune) {
 			buf.WriteByte(hex[r&0xF])
 		}
 	}
-}
-
-type Set map[interface{}]bool
-
-func (s Set) String() string {
-	keys := []string{}
-	for k, _ := range s {
-		keys = append(keys, fmt.Sprint(k))
-	}
-	return "#{" + strings.Join(keys, " ") + "}"
-}
-
-type Map map[interface{}]interface{}
-
-func (m Map) String() string {
-	kvs := []string{}
-	for k, v := range m {
-		kvs = append(kvs, fmt.Sprintf("%s %s", k, v))
-	}
-	return "{" + strings.Join(kvs, ", ") + "}"
 }

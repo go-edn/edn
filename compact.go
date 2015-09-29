@@ -22,6 +22,8 @@ func delimits(r rune) bool {
 	return isWhitespace(r)
 }
 
+// Compact appends to dst a compacted form of the EDN-encoded src. It does not
+// remove discard values.
 func Compact(dst *bytes.Buffer, src []byte) error {
 	origLen := dst.Len()
 	var lex lexer

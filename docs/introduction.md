@@ -281,6 +281,16 @@ application by the `edn.Rune` type.
 
 ## MarshalEDN and UnmarshalEDN
 
+If you want finer control of marshalling and unmarshalling, you can let your
+types implement the `edn.Marshaler` or `edn.Unmarshaler` interfaces. The
+Marshaler interface gives you a way to implement your own encoding of a type,
+and the Unmarshaler interface gives you a way to decode the type yourself.
+
+The Marshaler implementation must emit a single, legal EDN value. The
+Unmarshaler implementation must be able to read a single, legal EDN value. The
+value may or may not contain comments and discard values, so it's recommended
+that you leave this work to `go-edn` where possible.
+
 ## EDN Tags
 
 One of the characteristic features of EDN is

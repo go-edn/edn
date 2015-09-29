@@ -111,6 +111,8 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	return nil
 }
 
+// PPrintOpts is a configuration map for PPrint. The values in this struct has
+// no effect as of now.
 type PPrintOpts struct {
 	RightMargin int
 	MiserWidth  int
@@ -123,6 +125,11 @@ func pprintIndent(dst *bytes.Buffer, shift int) {
 	}
 }
 
+// PPrint appends to dst an indented form of the EDN-encoded src. This
+// implementation attempts to write idiomatic/readable EDN values, in a fashion
+// close to (but not quite equal to) clojure.pprint/pprint.
+//
+// PPrint filters away whitespace, including comments and discards.
 func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 	origLen := dst.Len()
 	var lex lexer

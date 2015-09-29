@@ -11,6 +11,7 @@ package edn
 import (
 	"bytes"
 	"encoding/base64"
+	"io"
 	"math"
 	"math/big"
 	"reflect"
@@ -180,6 +181,96 @@ func MarshalPPrint(v interface{}, opts *PPrintOpts) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// An Encoder writes EDN values to an output stream.
+type Encoder struct {
+	writer io.Writer
+	ec     encodeState
+}
+
+// NewEncoder returns a new encoder that writes to w.
+func NewEncoder(w io.Writer) *Encoder {
+	return &Encoder{
+		writer: w,
+		ec:     encodeState{},
+	}
+}
+
+// Encode writes the EDN encoding of v to the stream, followed by a newline
+// character.
+//
+// See the documentation for Marshal for details about the conversion of Go
+// values to EDN.
+func (e *Encoder) Encode(v interface{}) error {
+	e.ec.needsDelim = false
+	err := e.ec.marshal(v)
+	if err != nil {
+		e.ec.Reset()
+		return err
+	}
+	b := e.ec.Bytes()
+	e.ec.Reset()
+	_, err = e.writer.Write(b)
+	if err != nil {
+		return err
+	}
+	_, err = e.writer.Write([]byte{'\n'})
+	return err
+}
+
+// EncodeIndent writes the indented EDN encoding of v to the stream, followed by
+// a newline character.
+//
+// See the documentation for MarshalIndent for details about the conversion of
+// Go values to EDN.
+func (e *Encoder) EncodeIndent(v interface{}, prefix, indent string) error {
+	e.ec.needsDelim = false
+	err := e.ec.marshal(v)
+	if err != nil {
+		e.ec.Reset()
+		return err
+	}
+	b := e.ec.Bytes()
+	var buf bytes.Buffer
+	err = Indent(&buf, b, prefix, indent)
+	e.ec.Reset()
+	if err != nil {
+		return err
+	}
+	_, err = e.writer.Write(b)
+	if err != nil {
+		return err
+	}
+	_, err = e.writer.Write([]byte{'\n'})
+	return err
+}
+
+// EncodePPrint writes the pretty-printed EDN encoding of v to the stream,
+// followed by a newline character.
+//
+// See the documentation for MarshalPPrint for details about the conversion of
+// Go values to EDN.
+func (e *Encoder) EncodePPrint(v interface{}, opts *PPrintOpts) error {
+	e.ec.needsDelim = false
+	err := e.ec.marshal(v)
+	if err != nil {
+		e.ec.Reset()
+		return err
+	}
+	b := e.ec.Bytes()
+	var buf bytes.Buffer
+	err = PPrint(&buf, b, opts)
+	e.ec.Reset()
+	if err != nil {
+		return err
+	}
+	_, err = e.writer.Write(b)
+	if err != nil {
+		return err
+	}
+	_, err = e.writer.Write([]byte{'\n'})
+	return err
 }
 
 // Marshaler is the interface implemented by objects that

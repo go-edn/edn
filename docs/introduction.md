@@ -457,4 +457,24 @@ to evaluate them and you know where they are located, you can set its type to
 `edn.Tag`. When the type is `edn.Tag` (or any type that implements
 UnmarshalEDN), it will not attempt to convert the instance.
 
+### Writing Tags
+
+There are no easy ways to "just write" tags yet. One option is to implement like
+so:
+
+```go
+func (t MyVal) MarshalEDN() ([]byte, error) {
+	return edn.Marshal(edn.Tag{"myapp/mytag", t.innerMarshal()})
+}
+
+func (t MyVal) innerMarshal() interface{} {
+  return foo // to avoid infinite recursion
+}
+```
+
+But it is somewhat clumsy and difficult to comprehend. A solution that should
+solve this problem would be [#1](https://github.com/hyPiRion/go-edn/issues/1),
+but it is not readily available yet.
+
+## Big numbers
 

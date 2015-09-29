@@ -476,5 +476,14 @@ But it is somewhat clumsy and difficult to comprehend. A solution that should
 solve this problem would be [#1](https://github.com/hyPiRion/go-edn/issues/1),
 but it is not readily available yet.
 
-## Big numbers
+## Big Numbers
 
+go-edn supports big numbers out of the box. When numbers are appended with a
+`N`, they are assumed to be of type `math/big.Int`, and when appended with `M`,
+`math/big.Float`. The decoder will also attempt to coerce non-big types into big
+ones if the type expected is big and vice versa.
+
+Big floats do not have unlimited precision, but it can be configured globally or
+on a decoder-per-decoder basis. In addition, the rounding mode can be set if
+wanted. They exist in `edn.GlobalMathContext`, or you can make a
+`edn.MatchContext` struct and pass it in to decoders using `UseMathContext`.

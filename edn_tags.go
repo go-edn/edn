@@ -78,9 +78,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	err = AddTagFn("base64", func(s string) ([]byte, error) {
-		return base64.StdEncoding.DecodeString(s)
-	})
+	err = AddTagFn("base64", base64.StdEncoding.DecodeString)
 	if err != nil {
 		panic(err)
 	}

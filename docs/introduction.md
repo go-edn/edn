@@ -283,3 +283,178 @@ application by the `edn.Rune` type.
 
 ## EDN Tags
 
+One of the characteristic features of EDN is
+[tagged elements](https://github.com/edn-format/edn#tagged-elements). Tagged
+elements are fully supported in go-edn.
+
+One of the built-in tagged elements are timestamps, which use the tag `#inst`:
+
+```clj
+#inst "2015-09-28T13:20:19.570-00:00"
+```
+
+In our original user example, we used `int64`s to represent the time when a user
+was registered. We could have just as easily used `time.Time` for that.
+
+```go
+type User struct {
+	Username   string
+	Email      string
+	Registered time.Time
+}
+```
+
+We can marshal users in the exact same fashion.
+
+```go
+m := User{"alice", "alice@example.com", time.Now()}
+bs, err := edn.MarshalPPrint(m, nil)
+```
+
+which would yield
+
+```clj
+{:username "Alice",
+ :email "alice@example.com",
+ :registered #inst "2015-09-06T21:52:45Z"}
+```
+
+(Where the timestamp will be your current time)
+
+### Reading Tags
+
+The only tags that are provided by go-edn by default are `#inst` and `#base64`.
+If you want to add more ways to read tags, then it can be done in one out of two
+ways:
+
+- Providing a function that converts a specific type to some other type
+- Providing the structure of the tagged element
+
+As a general rule, you should _namespace_ your tags, or ensure that the tag is
+unique in the context you use it.
+
+#### Function-Based Conversion
+
+Providing a function is easy: If you have a type T and want to convert it to U,
+provide `edn.AddTagFn` with a function from type T to U, with an additional
+error value if something went wrong:
+
+```go
+intoComplex := func(v [2]float64) (complex128, error) {
+	return complex(v[0], v[1]), nil
+}
+err := edn.AddTagFn("complex", intoComplex)
+// handle error
+```
+
+This will automatically turn values of shape `#complex [0.5, 0.6]` into complex
+Go numbers.
+
+Sometimes, libraries give you this function for free. For example, if you want
+to add UUID support, you can use [go.uuid](https://github.com/satori/go.uuid)
+and use the function `uuid.FromString` as argument:
+
+```go
+err := edn.AddTagFn("uuid", uuid.FromString)
+// handle error
+```
+
+As a final example, let's have a look at how the internal init function that
+adds the default tagged elements:
+
+```go
+func init() {
+	err := AddTagFn("inst", func(s string) (time.Time, error) {
+		return time.Parse(time.RFC3339Nano, s)
+	})
+	if err != nil {
+		panic(err)
+	}
+	err = AddTagFn("base64", base64.StdEncoding.DecodeString)
+	if err != nil {
+		panic(err)
+	}
+}
+``` 
+
+#### Struct-Based Conversion
+
+For convenience, there is a function `edn.AddTagStruct` that takes the tag name
+and a struct:
+
+```go
+edn.AddTagStruct("mystruct", MyStruct{})
+// is semantically equivalent to
+edn.AddTagStruct("mystruct", func(s MyStruct) (MyStruct, error) { return s, nil })
+```
+
+Why would tagging a struct with the type it serialises to be useful? It ensures
+that the type will only evaluate to its type, regardless of context: Any
+`interface{}` this will be called with will be converted to MyStruct, instead of
+a go map.
+
+This can be useful if you do not know the shape of the input beforehand, but
+still want to ensure it is of a type that satisfies an interface. For example,
+consider these types and the interfaces they satsify.
+
+```go
+type Colour interface {
+	Space() string
+}
+type RGB struct {
+	R uint8
+	G uint8
+	B uint8
+}
+
+func (_ RGB) Space() string { return "RGB" }
+
+type YCbCr struct {
+	Y  uint8
+	Cb int8
+	Cr int8
+}
+
+func (_ YCbCr) Space() string { return "YCbCr" }
+```
+
+Now, if we attach tags that evaluate to their structs
+
+```go
+edn.AddTagFn("go-edn/rgb", func(r RGB) (RGB, error) { return r, nil })
+edn.AddTagFn("go-edn/ycbcr", func(y YCbCr) (YCbCr, error) { return y, nil })
+// or, more succinctly
+edn.AddTagFn("go-edn/rgb", RGB{})
+edn.AddTagFn("go-edn/ycbcr", YCbCr{})
+```
+
+We can now read a `[]Colour` without trouble
+
+```go
+s := `[#go-edn/ycbcr {:y 255 :cb 0 :cr -10}
+       #go-edn/rgb {:r 98 :g 218 :b 255}]`
+var colours []Colour
+err := edn.Unmarshal([]byte(s), &colours)
+// error handling..
+for _, colour := range colours {
+    fmt.Println(colour.Space())
+}
+```
+
+It's recommended to provide these functions and structures to a `TagMap` instead
+of directly manipulating global defaults if you don't have control of the entire
+project, or if you want to change them safely later. See the documentation on
+`TagMap` for more information.
+
+#### Unknown Tags and Skipping Evaluation
+
+If you receive a tag that go-edn does not know how to translate, it is returned
+as an `edn.Tag`. The `edn.Tag` implements `MarshalEDN`, so you should be able to
+pass it over to other services even though you don't know how to evaluate it.
+
+There is no way to explicitly avoid evaluating tags yet, but if you do not want
+to evaluate them and you know where they are located, you can set its type to
+`edn.Tag`. When the type is `edn.Tag` (or any type that implements
+UnmarshalEDN), it will not attempt to convert the instance.
+
+

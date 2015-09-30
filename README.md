@@ -74,4 +74,4 @@ it depends on `math/big.Float`, go-edn requires Go 1.5 or higher.
 Copyright © 2015 Jean Niklas L'orange
 
 Distributed under the BSD 3-clause license, which is available in the file
-COPYING.
+LICENSE.

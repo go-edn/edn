@@ -1,13 +1,15 @@
 # Go implementation of EDN, extensible data notation
 
+[![GoDoc](https://godoc.org/github.com/hyPiRion/go-edn?status.svg)](https://godoc.org/github.com/hyPiRion/go-edn)
+
 go-edn is a Golang library to read and write EDN (extensible data notation), a
 subset of Clojure used for transferring data between applications, much like
 JSON, YAML, or XML.
 
 This library is heavily influenced by the JSON library that ships with Go, and
 people familiar with that package should know the basics of how this library
-works. In fact, this should be close to a drop-in replacement for the `json`
-package if you only use basic functionality.
+works. In fact, this should be close to a drop-in replacement for the
+`encoding/json` package if you only use basic functionality.
 
 This implementation is fully working and (presumably) stable.
 

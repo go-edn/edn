@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"strings"
 )
 
 // A Keyword is an EDN keyword without : prepended in front.

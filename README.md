@@ -11,6 +11,9 @@ package if you only use basic functionality.
 
 This implementation is fully working and (presumably) stable.
 
+If you wonder why you should (not) use EDN, you can have a look at the
+[why](docs/why.md) document.
+
 ## Quickstart
 
 You can follow http://blog.golang.org/json-and-go and replace every occurence of

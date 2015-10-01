@@ -238,7 +238,7 @@ func (e *Encoder) EncodeIndent(v interface{}, prefix, indent string) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.writer.Write(b)
+	_, err = e.writer.Write(buf.Bytes())
 	if err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func (e *Encoder) EncodePPrint(v interface{}, opts *PPrintOpts) error {
 	if err != nil {
 		return err
 	}
-	_, err = e.writer.Write(b)
+	_, err = e.writer.Write(buf.Bytes())
 	if err != nil {
 		return err
 	}

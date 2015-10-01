@@ -218,6 +218,11 @@ func (d *Decoder) Decode(val interface{}) (err error) {
 		}
 	}()
 
+	err = d.more()
+	if err != nil {
+		return err
+	}
+
 	rv := reflect.ValueOf(val)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
 		return &InvalidUnmarshalError{reflect.TypeOf(val)}
@@ -1333,6 +1338,101 @@ func (t *tokenStack) push(tt tokenType) error {
 		t.pop()
 	}
 	return nil
+}
+
+// more removes whitespace and discards, and returns nil if there is more data.
+// If the end of the stream is found, io.EOF is sent back. If an error happens
+// while parsing a discard value, it is passed up.
+func (d *Decoder) more() error {
+	if d.undo {
+		return nil
+	}
+	if d.hasLeftover && d.leftover == '#' {
+		// check if next rune is '_'
+		r, _, err := d.rd.ReadRune()
+		if err == io.EOF {
+			return errNoneLeft
+		}
+		if err != nil {
+			return err
+		}
+		if r != '_' {
+			// it's not discard, so let's just unread the rune
+			return d.rd.UnreadRune()
+		}
+		// need to consume a value
+		d.hasLeftover = false
+		d.leftover = '\uFFFD'
+		d.lex.position += 2
+		err = d.traverseValue()
+		if err != nil {
+			return err
+		}
+	}
+
+	// If we've come to this step, we need to read whitespace and -- if we find
+	// something suspicious, we need to check if it can be assumed to be
+	// whitespace.
+	d.lex.reset()
+	for {
+		var r rune
+		var err error
+	readWhitespace:
+		for {
+			r, _, err = d.rd.ReadRune()
+			if err != nil {
+				return err
+				// if we hit the end of the line, then we don't have more and we return
+				// io.EOF
+			}
+			d.lex.position++
+			switch d.lex.state(r) {
+			case lexCont: // found something that looks like a value, so break out of whitespace loop
+				break readWhitespace
+			case lexError:
+				return d.lex.err
+			case lexEnd: // found a delimiter of some sort, so store it as leftover and return nil
+				d.hasLeftover = true
+				d.leftover = r
+				d.lex.position--
+				return nil
+			case lexEndPrev:
+				return errInternal
+			case lexIgnore:
+				// keep on readin'
+			}
+		}
+
+		if r == '#' { // the edge case again, so let's gobble
+			// check if next rune is '_'
+			r, _, err := d.rd.ReadRune()
+			if err == io.EOF {
+				return errNoneLeft
+			}
+			if err != nil {
+				return err
+			}
+			if r != '_' {
+				// it's not discard, so we unread the rune and put # as leftover
+				d.leftover = '#'
+				d.hasLeftover = true
+				return d.rd.UnreadRune()
+			}
+			// need to consume a value
+			d.hasLeftover = false
+			d.leftover = '\uFFFD'
+			d.lex.position += 2
+			err = d.traverseValue()
+			if err != nil {
+				return err
+			}
+		} else { // we could do unreadrune here too, would've been just as fine
+			d.hasLeftover = true
+			d.leftover = r
+			d.lex.position--
+			return nil
+		}
+	}
 }
 
 // Oh, asking about why this is so similar to the part above, eh? Yes, I would

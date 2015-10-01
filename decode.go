@@ -1368,6 +1368,10 @@ func (d *Decoder) more() error {
 		if err != nil {
 			return err
 		}
+		return d.more()
+	}
+	if d.hasLeftover && !isWhitespace(d.leftover) {
+		return nil
 	}
 
 	// If we've come to this step, we need to read whitespace and -- if we find
@@ -1416,6 +1420,7 @@ func (d *Decoder) more() error {
 				// it's not discard, so we unread the rune and put # as leftover
 				d.leftover = '#'
 				d.hasLeftover = true
+				d.lex.position--
 				return d.rd.UnreadRune()
 			}
 			// need to consume a value
@@ -1426,6 +1431,7 @@ func (d *Decoder) more() error {
 			if err != nil {
 				return err
 			}
+			return d.more()
 		} else { // we could do unreadrune here too, would've been just as fine
 			d.hasLeftover = true
 			d.leftover = r

@@ -53,15 +53,15 @@ var (
 //
 //	bool, for EDN booleans
 //	float64, for EDN floats
-//  int64, for EDN integers
-//  int32, for EDN characters
+//	int64, for EDN integers
+//	int32, for EDN characters
 //	string, for EDN strings
 //	[]interface{}, for EDN vectors and lists
 //	map[interface{}]interface{}, for EDN maps
-//  map[interface{}]bool, for EDN sets
+//	map[interface{}]bool, for EDN sets
 //	nil for EDN nil
-//  edn.Tag for unknown EDN tagged elements
-//  T for known EDN tagged elements, where T is the result of the converter function
+//	edn.Tag for unknown EDN tagged elements
+//	T for known EDN tagged elements, where T is the result of the converter function
 //
 // To unmarshal an EDN vector/list into a slice, Unmarshal resets the slice to
 // nil and then appends each element to the slice.

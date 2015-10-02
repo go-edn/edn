@@ -1370,7 +1370,7 @@ func (d *Decoder) more() error {
 		}
 		return d.more()
 	}
-	if d.hasLeftover && !isWhitespace(d.leftover) {
+	if d.hasLeftover && !isWhitespace(d.leftover) && d.leftover != ';' {
 		return nil
 	}
 

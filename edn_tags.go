@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package edn implements encoding and decoding of EDN values as defined in
+// https://github.com/edn-format/edn.
 package edn
 
 import (

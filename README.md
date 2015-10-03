@@ -1,6 +1,6 @@
 # Go implementation of EDN, extensible data notation
 
-[![GoDoc](https://godoc.org/github.com/hyPiRion/go-edn?status.svg)](https://godoc.org/github.com/hyPiRion/go-edn)
+[![GoDoc](https://godoc.org/github.com/go-edn/edn?status.svg)](https://godoc.org/github.com/go-edn/edn)
 
 go-edn is a Golang library to read and write EDN (extensible data notation), a
 subset of Clojure used for transferring data between applications, much like
@@ -15,6 +15,16 @@ This implementation is fully working and (presumably) stable.
 
 If you wonder why you should (not) use EDN, you can have a look at the
 [why](docs/why.md) document.
+
+## Installation and Usage
+
+The import path for the package is *gopkg.in/edn.v1*
+
+To install it, run:
+
+```shell
+go get gopkg.in/edn.v1
+```
 
 ## Quickstart
 

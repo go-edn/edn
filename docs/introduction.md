@@ -483,8 +483,8 @@ func (t MyVal) innerMarshal() interface{} {
 ```
 
 But it is somewhat clumsy and difficult to comprehend. A solution that should
-solve this problem would be [#1](https://github.com/hyPiRion/go-edn/issues/1),
-but it is not readily available yet.
+solve this problem would be [#1](https://github.com/go-edn/edn/issues/1), but it
+is not readily available yet.
 
 ## Big Numbers
 

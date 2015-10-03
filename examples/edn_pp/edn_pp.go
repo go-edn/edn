@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/hyPiRion/go-edn"
 	"io"
 	"os"
+
+	"gopkg.in/edn.v1"
 )
 
 func main() {

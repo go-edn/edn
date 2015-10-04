@@ -5,6 +5,7 @@
 package edn
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -157,5 +158,163 @@ func TestDiscard(t *testing.T) {
 		t.Log(err.Error())
 	} else if expected != s {
 		t.Error("Mismatch between the Go symbol and the symbol encoded as EDN")
+	}
+}
+
+// Test that we can read self-defined unmarshalEDNs
+type testUnmarshalEDN string
+
+func (t *testUnmarshalEDN) UnmarshalEDN(bs []byte) (err error) {
+	var kw Keyword
+	err = Unmarshal(bs, &kw)
+	if err == nil && string(kw) != "all" {
+		return fmt.Errorf("testUnmarshalEDN must be :all if it's a keyword, not %s", kw)
+	}
+	if err == nil {
+		*t = testUnmarshalEDN(kw)
+		return
+	}
+	// try to parse set of keywords
+	var m map[Keyword]bool
+	err = Unmarshal(bs, &m)
+	if err == nil {
+		*t = "set elements"
+	}
+	return
+}
+
+func TestUnmarshalEDN(t *testing.T) {
+	var tm testUnmarshalEDN
+	data := ":all"
+	expected := testUnmarshalEDN("all")
+	err := UnmarshalString(data, &tm)
+	if err != nil {
+		t.Errorf("Expected ':all' to successfully read into testUnmarshalEDN")
+		t.Log(err.Error())
+	} else if expected != tm {
+		t.Error("Mismatch between testUnmarshalEDN unmarshaling and the expected value")
+		t.Logf("Was %s, expected %s", tm, expected)
+	}
+
+	data = "#{:foo :bar :baz}"
+	expected = testUnmarshalEDN("set elements")
+	err = UnmarshalString(data, &tm)
+	if err != nil {
+		t.Errorf("Expected '#{:foo :bar :baz}' to successfully read into testUnmarshalEDN")
+		t.Log(err.Error())
+	} else if expected != tm {
+		t.Error("Mismatch between testUnmarshalEDN unmarshaling and the expected value")
+		t.Logf("Was %s, expected %s", tm, expected)
+	}
+
+	data = "#{:all #{:foo :bar :baz}}"
+
+	var tms map[testUnmarshalEDN]bool
+	err = UnmarshalString(data, &tms)
+	if err != nil {
+		t.Errorf("Expected '#{:all #{:foo :bar :baz}}' to successfully read into a map[testUnmarshalEDN]bool")
+		t.Log(err.Error())
+	} else {
+		fail := false
+		if len(tms) != 2 {
+			fail = true
+		}
+		if !tms[testUnmarshalEDN("all")] {
+			fail = true
+		}
+		if !tms[testUnmarshalEDN("set elements")] {
+			fail = true
+		}
+		if fail {
+			t.Error("Mismatch between testUnmarshalEDN unmarshaling and the expected value")
+			t.Logf("Was %s", tm)
+		}
+	}
+}
+
+type vectorCounter int
+
+func (v *vectorCounter) UnmarshalEDN(bs []byte) (err error) {
+	var vec []interface{}
+	err = Unmarshal(bs, &vec)
+	if err != nil {
+		return
+	}
+	*v = vectorCounter(len(vec))
+	return
+}
+
+func TestVectorCounter(t *testing.T) {
+	var v vectorCounter
+	data := "[foo bar baz]"
+
+	var expected vectorCounter = 3
+	err := UnmarshalString(data, &v)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into vectorCounter", data)
+		t.Log(err.Error())
+	} else if expected != v {
+		t.Error("Mismatch between vectorCounter unmarshaling and the expected value")
+		t.Logf("Was %d, expected %d", v, expected)
+	}
+
+	data = "(a b c d e f)"
+	expected = 6
+	err = UnmarshalString(data, &v)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into vectorCounter", data)
+		t.Log(err.Error())
+	} else if expected != v {
+		t.Error("Mismatch between vectorCounter unmarshaling and the expected value")
+		t.Logf("Was %d, expected %d", v, expected)
+	}
+
+	data = `[[a b c][d e f g h],[#_3 z 2 \c]()["c d e"](2 3.0M)]`
+	var vs []vectorCounter
+	expected2 := []vectorCounter{3, 5, 3, 0, 1, 2}
+	err = UnmarshalString(data, &vs)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into []vectorCounter", data)
+		t.Log(err.Error())
+	} else if !reflect.DeepEqual(vs, expected2) {
+		t.Errorf("Mismatch between %#v and %#v", vs, expected2)
+	}
+
+	data = `{[a b c] "quux", [] "frob"}`
+	var vmap map[vectorCounter]string
+	expected3 := map[vectorCounter]string{3: "quux", 0: "frob"}
+	err = UnmarshalString(data, &vmap)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into map[vectorCounter]string", data)
+		t.Log(err.Error())
+	} else if !reflect.DeepEqual(vmap, expected3) {
+		t.Errorf("Mismatch between %#v and %#v", vmap, expected3)
+	}
+}
+
+type mapCounter int
+
+func (mc *mapCounter) UnmarshalEDN(bs []byte) (err error) {
+	var m map[interface{}]interface{}
+	err = Unmarshal(bs, &m)
+	if err != nil {
+		return
+	}
+	*mc = mapCounter(len(m))
+	return
+}
+
+func TestMapCounter(t *testing.T) {
+	var mc mapCounter
+	data := `{:a :b :c :d 1 0 nil foo}`
+
+	var expected mapCounter = 4
+	err := UnmarshalString(data, &mc)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into mapCounter", data)
+		t.Log(err.Error())
+	} else if expected != mc {
+		t.Error("Mismatch between mapCounter unmarshaling and the expected value")
+		t.Logf("Was %d, expected %d", mc, expected)
 	}
 }

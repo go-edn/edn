@@ -279,6 +279,11 @@ func (d *Decoder) array(v reflect.Value, endType tokenType) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
+		if endType == tokenVectorEnd {
+			d.doUndo([]byte{'['}, tokenVectorStart)
+		} else {
+			d.doUndo([]byte{'('}, tokenListStart)
+		}
 		bs, err := d.nextValueBytes() // nextvaluebytes
 		if err == nil {
 			err = u.UnmarshalEDN(bs)
@@ -387,6 +392,7 @@ func (d *Decoder) value(v reflect.Value) {
 		d.valueInterface()
 		return
 	}
+
 	bs, ttype, err := d.nextToken()
 	// check error first
 	if err != nil {
@@ -535,6 +541,7 @@ func (d *Decoder) ednmap(v reflect.Value) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
+		d.doUndo([]byte{'{'}, tokenMapStart)
 		bs, err := d.nextValueBytes()
 		if err == nil {
 			err = u.UnmarshalEDN(bs)
@@ -656,11 +663,15 @@ func (d *Decoder) ednmap(v reflect.Value) {
 			subv = mapElem
 			d.value(subv)
 
-			switch reflect.TypeOf(key).Kind() {
-			case reflect.Slice, reflect.Map: // bypass issues with unhashable types
-				v.SetMapIndex(reflect.ValueOf(&key), subv)
-			default:
-				v.SetMapIndex(reflect.ValueOf(key), subv)
+			if key == nil {
+				v.SetMapIndex(reflect.New(keyType).Elem(), subv)
+			} else {
+				switch reflect.TypeOf(key).Kind() {
+				case reflect.Slice, reflect.Map: // bypass issues with unhashable types
+					v.SetMapIndex(reflect.ValueOf(&key), subv)
+				default:
+					v.SetMapIndex(reflect.ValueOf(key), subv)
+				}
 			}
 		}
 	} else { // default map case
@@ -719,6 +730,7 @@ func (d *Decoder) set(v reflect.Value) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
+		d.doUndo([]byte{'#', '{'}, tokenSetStart)
 		bs, err := d.nextValueBytes()
 		if err == nil {
 			err = u.UnmarshalEDN(bs)

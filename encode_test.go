@@ -30,6 +30,15 @@ func TestEncoding(t *testing.T) {
 		Comp string `edn:",str"`
 	}{"ressed"}
 	testEncode(t, val, `{"comp""ressed"}`)
+
+	val = struct {
+		TheSet [2]int   `edn:"the-set,set,sym"`
+		Slice  []string `edn:",set"`
+	}{
+		[2]int{3, 4},
+		[]string{"foo", "bar"},
+	}
+	testEncode(t, val, `{the-set #{3 4}:slice #{"foo""bar"}}`)
 }
 
 func testEncode(t *testing.T, val interface{}, expects string) {

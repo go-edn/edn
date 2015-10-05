@@ -318,3 +318,16 @@ func TestMapCounter(t *testing.T) {
 		t.Logf("Was %d, expected %d", mc, expected)
 	}
 }
+
+func TestSliceSet(t *testing.T) {
+	var ss []string // no need to specify `edn:",set"` for this
+	data := `#{"a" "b" "c"}`
+	err := UnmarshalString(data, &ss)
+	if err != nil {
+		t.Errorf("Expected '%s' to succesfully read into a string slice", data)
+		t.Log(err.Error())
+	} else if !reflect.DeepEqual(ss, []string{"a", "b", "c"}) {
+		t.Error("Mismatch between string slice unmarshaling and expected value")
+		t.Logf(`Was %#v, expected []string{"a", "b", "c"}.`, ss)
+	}
+}

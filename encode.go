@@ -837,11 +837,32 @@ func (ae *listArrayEncoder) encode(e *encodeState, v reflect.Value) {
 	e.needsDelim = false
 }
 
+type setArrayEncoder struct {
+	elemEnc encoderFunc
+}
+
+func (ae *setArrayEncoder) encode(e *encodeState, v reflect.Value) {
+	e.ensureDelim()
+	e.WriteByte('#')
+	e.WriteByte('{')
+	e.needsDelim = false
+	n := v.Len()
+	for i := 0; i < n; i++ {
+		ae.elemEnc(e, v.Index(i))
+	}
+	e.WriteByte('}')
+	e.needsDelim = false
+}
+
 func newArrayEncoder(t reflect.Type, tagType tagType) encoderFunc {
-	if tagType == tagList {
+	switch tagType {
+	case tagList:
 		enc := &listArrayEncoder{typeEncoder(t.Elem(), tagUndefined)}
 		return enc.encode
-	} else {
+	case tagSet:
+		enc := &setArrayEncoder{typeEncoder(t.Elem(), tagUndefined)}
+		return enc.encode
+	default:
 		enc := &arrayEncoder{typeEncoder(t.Elem(), tagUndefined)}
 		return enc.encode
 	}

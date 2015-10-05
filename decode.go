@@ -279,12 +279,15 @@ func (d *Decoder) array(v reflect.Value, endType tokenType) {
 	// Check for unmarshaler.
 	u, pv := d.indirect(v, false)
 	if u != nil {
-		if endType == tokenVectorEnd {
+		switch endType {
+		case tokenVectorEnd:
 			d.doUndo([]byte{'['}, tokenVectorStart)
-		} else {
+		case tokenListEnd:
 			d.doUndo([]byte{'('}, tokenListStart)
+		case tokenSetEnd:
+			d.doUndo([]byte{'#', '{'}, tokenSetStart)
 		}
-		bs, err := d.nextValueBytes() // nextvaluebytes
+		bs, err := d.nextValueBytes()
 		if err == nil {
 			err = u.UnmarshalEDN(bs)
 		}
@@ -769,6 +772,11 @@ func (d *Decoder) set(v reflect.Value) {
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
 		}
+	case reflect.Slice, reflect.Array:
+		// Some extent of rechecking going on when we pass it to array, but it
+		// should be a constant factor only.
+		d.array(v, tokenSetEnd)
+		return
 	case reflect.Interface:
 		if v.NumMethod() == 0 {
 			// break out and use setInterface
@@ -781,6 +789,7 @@ func (d *Decoder) set(v reflect.Value) {
 	default:
 		d.error(&UnmarshalTypeError{"set", v.Type()})
 	}
+
 	// special case here, to avoid panics when we have slices and maps as keys.
 	// Split out from code below to improve perf
 	if keyType.Kind() == reflect.Interface && keyType.NumMethod() == 0 {
@@ -817,6 +826,7 @@ func (d *Decoder) set(v reflect.Value) {
 			v.SetMapIndex(key, setValue)
 		}
 	}
+
 }
 
 func (d *Decoder) setInterface() interface{} {

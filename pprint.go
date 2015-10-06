@@ -141,8 +141,8 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 	tokStack := newTokenStack()
 	shift := []int{0}
 	col := 0
-	prevMap := false
-	prevMapStart := 0
+	prevColl := false
+	prevCollStart := 0
 	curType := tokenError
 	curSize := 0
 	d := NewDecoder(bytes.NewBuffer(src))
@@ -178,11 +178,11 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 					col++
 				}
 			case tokenSetStart, tokenVectorStart, tokenListStart:
-				if prevMap {
-					// begin on new line where prevMap started
+				if prevColl {
+					// begin on new line where prevColl started
 					// This will look so strange for heterogenous maps.
-					pprintIndent(dst, prevMapStart)
-					col = prevMapStart
+					pprintIndent(dst, prevCollStart)
+					col = prevCollStart
 				} else if prevSize > 0 {
 					dst.WriteByte(' ')
 					col++
@@ -196,7 +196,7 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 			shift = append(shift, col) // we only use maps for now, but we'll utilise this more thoroughly later on
 		case tokenVectorEnd, tokenListEnd, tokenMapEnd: // tokenSetEnd == tokenMapEnd
 			dst.WriteByte(bs[0]) // all of these are of length 1 in bytes, so this is ok
-			prevMapStart = shift[len(shift)-1] - 1
+			prevCollStart = shift[len(shift)-1] - 1
 			shift = shift[:len(shift)-1]
 		case tokenTag:
 			bslen := utf8.RuneCount(bs)
@@ -208,7 +208,7 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 			dst.Write(bs)
 			col += bslen
 		}
-		prevMap = tt == tokenMapEnd
+		prevColl = (tt == tokenMapEnd || tt == tokenVectorEnd || tt == tokenListEnd)
 		if tokStack.done() {
 			break
 		}

@@ -562,7 +562,6 @@ func (d *Decoder) ednmap(v reflect.Value) {
 	}
 
 	var keyType reflect.Type
-	var subv reflect.Value
 
 	// Check type of target: Struct or map[T]U
 	switch v.Kind() {
@@ -615,6 +614,7 @@ func (d *Decoder) ednmap(v reflect.Value) {
 				continue
 			}
 
+			var subv reflect.Value
 			var f *field
 			fields := cachedTypeFields(v.Type())
 			for i := range fields {
@@ -663,7 +663,7 @@ func (d *Decoder) ednmap(v reflect.Value) {
 			} else {
 				mapElem.Set(reflect.Zero(elemType))
 			}
-			subv = mapElem
+			subv := mapElem
 			d.value(subv)
 
 			if key == nil {
@@ -699,7 +699,7 @@ func (d *Decoder) ednmap(v reflect.Value) {
 			} else {
 				mapElem.Set(reflect.Zero(elemType))
 			}
-			subv = mapElem
+			subv := mapElem
 			d.value(subv)
 			v.SetMapIndex(key, subv)
 		}

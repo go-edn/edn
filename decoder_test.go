@@ -331,3 +331,30 @@ func TestSliceSet(t *testing.T) {
 		t.Logf(`Was %#v, expected []string{"a", "b", "c"}.`, ss)
 	}
 }
+
+type ExtraField struct {
+	Foo string
+}
+
+// TestExtraFields checks whether reading extra fields - in any order, is done
+// correctly.
+func TestExtraFields(t *testing.T) {
+	expected := ExtraField{Foo: "123"}
+	inputs := []string{
+		`{:foo "123" :extra "456"}`,
+		`{:extra "456" :foo "123"}`,
+		`{:foo "123" :extra 456}`,
+		`{:extra 456 :foo "123"}`,
+	}
+	for _, input := range inputs {
+		var ef ExtraField
+		err := UnmarshalString(input, &ef)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into an ExtraField type", input)
+			t.Log(err.Error())
+		} else if ef != expected {
+			t.Error("Mismatch between struct unmarshaling and expected value")
+			t.Logf(`Was %#v, expected %#v.`, ef, expected)
+		}
+	}
+}

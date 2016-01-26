@@ -26,6 +26,17 @@ To install it, run:
 go get gopkg.in/edn.v1
 ```
 
+To use it in your project, you import `gopkg.in/edn.v1` and refer to it as `edn`
+like this:
+
+```go
+import "gopkg.in/edn.v1"
+
+//...
+
+edn.DoStuff()
+```
+
 ## Quickstart
 
 You can follow http://blog.golang.org/json-and-go and replace every occurence of
@@ -36,7 +47,9 @@ stores arbitrary maps on the form `map[interface{}]interface{}`.
 go-edn also ships with keywords, symbols and tags as types.
 
 For a longer introduction on how to use the library, see
-[introduction.md](docs/introduction.md).
+[introduction.md](docs/introduction.md). If you're familiar with the JSON
+package, then the [API Documentation](https://godoc.org/gopkg.in/edn.v1) might
+be the only thing you need.
 
 ## Example Usage
 
@@ -59,6 +72,11 @@ type Person struct {
 With go-edn, we can do as follows to read and write these types:
 
 ```go
+import "gopkg.in/edn.v1"
+
+//...
+
+
 func ReturnData() (Person, error) {
 	data := `{:name "Hans",
               :born 1970,
@@ -86,7 +104,7 @@ it depends on `math/big.Float`, go-edn requires Go 1.5 or higher.
 
 ## License
 
-Copyright © 2015 Jean Niklas L'orange
+Copyright © 2015-2016 Jean Niklas L'orange
 
 Distributed under the BSD 3-clause license, which is available in the file
 LICENSE.

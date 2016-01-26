@@ -413,3 +413,26 @@ func TestNilMap(t *testing.T) {
 		}
 	}
 }
+
+func TestNilNotFunnilyCoerced(t *testing.T) {
+	inputs := []string{
+		`{"1" 2 nil 3}`,
+	}
+	for _, input := range inputs {
+		var val map[string]int
+		err := UnmarshalString(input, &val)
+		if err == nil {
+			t.Errorf("Expected '%s' to error out when read into map[string]int", input)
+			t.Logf("Value is %#v", val)
+		}
+	}
+}
+
+func TestNilNotEmptyString(t *testing.T) {
+	input := "nil"
+	var val string
+	err := UnmarshalString(input, &val)
+	if err == nil {
+		t.Error("Expected nil to not be a string")
+	}
+}

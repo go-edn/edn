@@ -894,7 +894,8 @@ func (d *Decoder) literal(bs []byte, ttype tokenType, v reflect.Value) {
 			switch v.Kind() {
 			case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
 				v.Set(reflect.Zero(v.Type()))
-				// else ignore
+			default:
+				d.error(&UnmarshalTypeError{"nil", v.Type()})
 			}
 		} else if bytes.Equal(trueByte, bs) || bytes.Equal(falseByte, bs) { // true|false
 			value := bs[0] == 't'

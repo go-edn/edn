@@ -719,11 +719,16 @@ func (d *Decoder) ednmapInterface() interface{} {
 		d.doUndo(bs, tt)
 		key := d.valueInterface()
 		value := d.valueInterface()
-		switch reflect.TypeOf(key).Kind() {
-		case reflect.Slice, reflect.Map: // bypass issues with unhashable types
-			theMap[&key] = value
-		default:
+		// special case on nil here. nil is hashable, so use it as key.
+		if key == nil {
 			theMap[key] = value
+		} else {
+			switch reflect.TypeOf(key).Kind() {
+			case reflect.Slice, reflect.Map: // bypass issues with unhashable types
+				theMap[&key] = value
+			default:
+				theMap[key] = value
+			}
 		}
 	}
 	return theMap
@@ -803,11 +808,17 @@ func (d *Decoder) set(v reflect.Value) {
 			}
 			d.doUndo(bs, tt)
 			key := d.valueInterface()
-			switch reflect.TypeOf(key).Kind() {
-			case reflect.Slice, reflect.Map: // bypass issues with unhashable types
-				v.SetMapIndex(reflect.ValueOf(&key), setValue)
-			default:
-				v.SetMapIndex(reflect.ValueOf(key), setValue)
+			// special case on nil here: Need to create a zero type of the specific
+			// keyType. As this is an interface, this will itself be nil.
+			if key == nil {
+				v.SetMapIndex(reflect.New(keyType).Elem(), setValue)
+			} else {
+				switch reflect.TypeOf(key).Kind() {
+				case reflect.Slice, reflect.Map: // bypass issues with unhashable types
+					v.SetMapIndex(reflect.ValueOf(&key), setValue)
+				default:
+					v.SetMapIndex(reflect.ValueOf(key), setValue)
+				}
 			}
 		}
 	} else {
@@ -841,11 +852,15 @@ func (d *Decoder) setInterface() interface{} {
 		}
 		d.doUndo(bs, tt)
 		key := d.valueInterface()
-		switch reflect.TypeOf(key).Kind() {
-		case reflect.Slice, reflect.Map: // bypass issues with unhashable types
-			theSet[&key] = true
-		default:
+		if key == nil {
 			theSet[key] = true
+		} else {
+			switch reflect.TypeOf(key).Kind() {
+			case reflect.Slice, reflect.Map: // bypass issues with unhashable types
+				theSet[&key] = true
+			default:
+				theSet[key] = true
+			}
 		}
 	}
 	return theSet

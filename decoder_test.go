@@ -306,7 +306,7 @@ func (mc *mapCounter) UnmarshalEDN(bs []byte) (err error) {
 
 func TestMapCounter(t *testing.T) {
 	var mc mapCounter
-	data := `{:a :b :c :d 1 0 nil foo}`
+	data := `{nil foo :a :b :c :d 1 0}`
 
 	var expected mapCounter = 4
 	err := UnmarshalString(data, &mc)
@@ -345,6 +345,7 @@ func TestExtraFields(t *testing.T) {
 		`{:extra "456" :foo "123"}`,
 		`{:foo "123" :extra 456}`,
 		`{:extra 456 :foo "123"}`,
+		`{nil 456 :foo "123"}`,
 	}
 	for _, input := range inputs {
 		var ef ExtraField
@@ -355,6 +356,60 @@ func TestExtraFields(t *testing.T) {
 		} else if ef != expected {
 			t.Error("Mismatch between struct unmarshaling and expected value")
 			t.Logf(`Was %#v, expected %#v.`, ef, expected)
+		}
+	}
+}
+
+func TestNilSet(t *testing.T) {
+	inputs := []string{
+		`#{1 2 nil 3}`,
+		`#{nil}`,
+		`#{#{nil} #{nil 1}}`,
+		`#{nil 1 2}`,
+		`#{1 2 3 nil}`,
+	}
+	for _, input := range inputs {
+		var val []interface{}
+		err := UnmarshalString(input, &val)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into []interface{}", input)
+			t.Log(err.Error())
+		}
+		var ival interface{}
+		err = UnmarshalString(input, &ival)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into interface{}", input)
+			t.Log(err.Error())
+		}
+		var mval map[interface{}]bool
+		err = UnmarshalString(input, &mval)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into map[interface{}]bool", input)
+			t.Log(err.Error())
+		}
+	}
+}
+
+func TestNilMap(t *testing.T) {
+	inputs := []string{
+		`{1 2 nil 3}`,
+		`{nil foo}`,
+		`{{nil nil} 2 nil 1}`,
+		`{nil 1 2 3}`,
+		`{1 2 3 nil}`,
+	}
+	for _, input := range inputs {
+		var ival interface{}
+		err := UnmarshalString(input, &ival)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into interface{}", input)
+			t.Log(err.Error())
+		}
+		var mval map[interface{}]interface{}
+		err = UnmarshalString(input, &mval)
+		if err != nil {
+			t.Errorf("Expected '%s' to succesfully read into map[interface{}]interface{}", input)
+			t.Log(err.Error())
 		}
 	}
 }

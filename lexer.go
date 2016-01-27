@@ -568,7 +568,7 @@ func (l *lexer) statePound(r rune) lexState {
 	case r == '{':
 		l.token = tokenSetStart
 		return lexEnd
-	case u.IsLetter(r) || okSymbolFirst(r):
+	case u.IsLetter(r):
 		l.token = tokenTag
 		l.state = l.stateSym
 		return lexCont

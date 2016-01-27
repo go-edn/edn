@@ -18,11 +18,10 @@ import (
 )
 
 var (
-	errInternal       = errors.New("Illegal internal parse state")
-	errNoneLeft       = errors.New("No more tokens to read")
-	errUnexpected     = errors.New("Unexpected token")
-	errNotImplemented = errors.New("Tags are not yet implemented")
-	errIllegalRune    = errors.New("Illegal rune form")
+	errInternal    = errors.New("Illegal internal parse state")
+	errNoneLeft    = errors.New("No more tokens to read")
+	errUnexpected  = errors.New("Unexpected token")
+	errIllegalRune = errors.New("Illegal rune form")
 )
 
 // Unmarshal parses the EDN-encoded data and stores the result in the value

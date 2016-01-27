@@ -526,8 +526,7 @@ func (d *Decoder) valueInterface() interface{} {
 	case tokenSymbol, tokenKeyword, tokenString, tokenInt, tokenFloat, tokenChar:
 		return d.literalInterface(bs, ttype)
 	case tokenTag:
-		d.error(errNotImplemented)
-		return nil
+		return d.tagInterface(bs)
 	case tokenListStart:
 		return d.arrayInterface(tokenListEnd)
 	case tokenVectorStart:
@@ -1100,17 +1099,22 @@ func (d *Decoder) literalInterface(bs []byte, ttype tokenType) interface{} {
 	case tokenKeyword:
 		return Keyword(string(bs[1:]))
 	case tokenInt:
-		var s string
-		if bs[len(bs)-1] == 'N' { // can end with N, which we promptly ignore
-			s = string(bs[:len(bs)-1])
+		if bs[len(bs)-1] == 'N' { // can end with N
+			var bi big.Int
+			s := string(bs[:len(bs)-1])
+			_, ok := bi.SetString(s, 10)
+			if !ok {
+				d.error(errInternal)
+			}
+			return bi
 		} else {
-			s = string(bs)
+			s := string(bs)
+			n, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				d.error(err)
+			}
+			return n
 		}
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			d.error(err)
-		}
-		return n
 	case tokenFloat:
 		var s string
 		if bs[len(bs)-1] == 'M' { // can end with M, which we promptly ignore

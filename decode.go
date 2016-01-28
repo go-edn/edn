@@ -24,6 +24,17 @@ var (
 	errIllegalRune = errors.New("Illegal rune form")
 )
 
+type UnknownTagError struct {
+	tag    []byte
+	value  []byte
+	inType reflect.Type
+}
+
+func (ute UnknownTagError) Error() string {
+	return fmt.Sprintf("Unable to decode %s%s into %s", string(ute.tag),
+		string(ute.value), ute.inType)
+}
+
 // Unmarshal parses the EDN-encoded data and stores the result in the value
 // pointed to by v.
 //
@@ -446,8 +457,11 @@ func (d *Decoder) tag(tag []byte, v reflect.Value) {
 		// That is any interface that specifies any combination of the methods
 		// MarshalEDN, UnmarshalEDN and String. I'm not sure if that makes sense
 		// though, so I've punted this for now.
-		d.error(errInternal)
-		return
+		bs, err := d.nextValueBytes()
+		if err != nil {
+			d.error(err)
+		}
+		d.error(UnknownTagError{tag, bs, v.Type()})
 	} else {
 		tfn := fn.Type()
 		var result reflect.Value

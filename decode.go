@@ -131,7 +131,7 @@ func (d *Decoder) AddTagStruct(tagname string, example interface{}) error {
 }
 
 // UseTagMap sets the TagMap provided as the TagMap for this decoder.
-func (d *Decoder) UseTagMap(tm TagMap) {
+func (d *Decoder) UseTagMap(tm *TagMap) {
 	d.tagmap = tm
 }
 
@@ -173,7 +173,7 @@ type Decoder struct {
 	lex        *lexer
 	savedError error
 	rd         *bufio.Reader
-	tagmap     TagMap
+	tagmap     *TagMap
 	mc         *MathContext
 	// parser-specific
 	prevSlice []byte
@@ -251,6 +251,7 @@ func newDecoder(buf *bufio.Reader) *Decoder {
 		rd:          buf,
 		hasLeftover: false,
 		leftover:    '\uFFFD',
+		tagmap:      new(TagMap),
 	}
 }
 

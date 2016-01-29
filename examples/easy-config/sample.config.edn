@@ -11,7 +11,8 @@
  :id #uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
   ;; The max amount of children we can spawn up
  :max-children 5
- ;; The duration to wait before we kill child nodes that have not done any work for.
+ ;; The duration to wait before we shutdown child nodes that have not done any
+ ;; work
  :shutdown-after #duration "3h20m"
  ;; The root users on this node. Gives "sudoers"-like access.
  :root-users #{"eugene" "tamara"}

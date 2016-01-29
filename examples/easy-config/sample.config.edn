@@ -1,0 +1,20 @@
+{;; The db map is the set of values required to login to the postgres database
+ ;; we connect to.
+ :db {:user "my-username"
+      :pwd "secret"
+      :host "hostname.at.my-region.rds.amazonaws.com"
+      :db "databasename"
+      :port 5432}
+ ;; Port to listen for requests on
+ :port 3000
+ ;; The id of this node
+ :id #uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+  ;; The max amount of children we can spawn up
+ :max-children 5
+ ;; The duration to wait before we kill child nodes that have not done any work for.
+ :shutdown-after #duration "3h20m"
+ ;; The root users on this node. Gives "sudoers"-like access.
+ :root-users #{"eugene" "tamara"}
+ ;; Which environment we're in. Has nothing to say for the app itself, but it's
+ ;; attached on the log messages sent to our centralised logging system.
+ :env "development"}

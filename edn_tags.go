@@ -3,7 +3,14 @@
 // license that can be found in the LICENSE file.
 
 // Package edn implements encoding and decoding of EDN values as defined in
-// https://github.com/edn-format/edn.
+// https://github.com/edn-format/edn. For a full introduction on how to use
+// go-edn, see https://github.com/go-edn/edn/blob/v1/docs/introduction.md. Fully
+// self-contained examples of go-edn can be found at
+// https://github.com/go-edn/edn/tree/v1/examples.
+//
+// Note that the examples in this package is not checking errors as persively as
+// you should do when you use this package. This is done because I'd like the
+// examples to be easily readable and understandable.
 package edn
 
 import (
@@ -111,7 +118,7 @@ type MathContext struct {
 }
 
 // The GlobalMathContext is the global MathContext. It is used if no other
-// context is provided.
+// context is provided. See MathContext for example usage.
 var GlobalMathContext = MathContext{
 	Mode:      big.ToNearestEven,
 	Precision: 192,

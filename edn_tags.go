@@ -8,9 +8,10 @@
 // self-contained examples of go-edn can be found at
 // https://github.com/go-edn/edn/tree/v1/examples.
 //
-// Note that the examples in this package is not checking errors as persively as
-// you should do when you use this package. This is done because I'd like the
-// examples to be easily readable and understandable.
+// Note that the small examples in this package is not checking errors as
+// persively as you should do when you use this package. This is done because
+// I'd like the examples to be easily readable and understandable. The bigger
+// examples provide proper error handling.
 package edn
 
 import (

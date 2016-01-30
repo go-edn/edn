@@ -14,18 +14,24 @@ func ExampleDecoder_AddTagFn_duration() {
 
 	rdr := strings.NewReader(input)
 	dec := edn.NewDecoder(rdr)
-	err := dec.AddTagFn("com.myapp/duration", time.ParseDuration)
-	if err != nil {
-		panic(err)
-	}
+	dec.AddTagFn("com.myapp/duration", time.ParseDuration)
 
 	var d time.Duration
-	err = dec.Decode(&d)
-	if err != nil {
-		panic(err)
-	}
+	dec.Decode(&d)
 	fmt.Println(d)
-	// Output: 2h30m0s
+
+	input = `#com.myapp/duration "1moment"`
+	rdr = strings.NewReader(input)
+	dec = edn.NewDecoder(rdr)
+	dec.AddTagFn("com.myapp/duration", time.ParseDuration)
+	err := dec.Decode(&d)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Output:
+	// 2h30m0s
+	// time: unknown unit moment in duration 1moment
 }
 
 func ExampleDecoder_AddTagFn_complex() {
@@ -196,4 +202,23 @@ func ExampleKeyword() {
 	// Output:
 	// :friday
 	// It is friday!
+}
+
+func ExampleRune() {
+	runeSlice := []edn.Rune{'a', 'b', 'c', ',', ' ', '\n'}
+
+	bs, _ := edn.Marshal(runeSlice)
+
+	fmt.Println(string(bs))
+	// Output: [\a \b \c \u002c \space \newline]
+}
+
+func ExampleTag_reading() {
+	input := "#unknown ???"
+
+	var tag edn.Tag
+	edn.UnmarshalString(input, &tag)
+
+	fmt.Printf("Tag with name %s and value %q of type %T\n", tag.Tagname, tag.Value, tag.Value)
+	// Output: Tag with name unknown and value "???" of type edn.Symbol
 }

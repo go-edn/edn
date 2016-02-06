@@ -222,3 +222,60 @@ func ExampleTag_reading() {
 	fmt.Printf("Tag with name %s and value %q of type %T\n", tag.Tagname, tag.Value, tag.Value)
 	// Output: Tag with name unknown and value "???" of type edn.Symbol
 }
+
+// TODO: Lots and lots of unmarshalstring samples, refer to them in unmarshal
+
+func ExampleUnmarshal_set() {
+	// map[T]bool is considered as sets as well as maps
+	var val map[int]bool
+
+	edn.UnmarshalString("#{1 -5 42}", &val)
+	fmt.Println(val[42], val[123]) // => true false
+
+	edn.UnmarshalString("{1 false 2 true}", &val)
+	fmt.Println(val[1], val[2]) // => false true
+
+	// Output:
+	// true false
+	// false true
+}
+
+func ExampleMarshal_set() {
+	// values of type map[T]bool and map[T]struct{} are encoded as EDN sets by
+	// default
+	val := map[int]bool{42: true}
+
+	bs, _ := edn.Marshal(val)
+	fmt.Println(string(bs)) // => #{42}
+
+	val2 := map[string]struct{}{"hiccup": {}}
+	bs, _ = edn.Marshal(val2)
+	fmt.Println(string(bs)) // => #{"hiccup"}
+
+	// Output:
+	// #{42}
+	// #{"hiccup"}
+}
+
+func ExampleMarshal_setOverride() {
+	// You can specify that map[T]bool/struct{} are printed as EDN maps by using
+	// the `map` keyword in the EDN struct tag:
+	type Value struct {
+		BoolMap   map[int]bool        `edn:"bool-map,map,omitempty"`
+		StructMap map[string]struct{} `edn:"struct-map,map,omitempty"`
+	}
+
+	var val Value
+	val.BoolMap = map[int]bool{2: false}
+	bs, _ := edn.Marshal(val)
+	fmt.Println(string(bs)) // => {:bool-map{2 false}}
+
+	val.BoolMap = nil
+	val.StructMap = map[string]struct{}{"foo": {}}
+	bs, _ = edn.Marshal(val)
+	fmt.Println(string(bs)) // =>  {:struct-map{"foo"{}}}
+
+	// Output:
+	// {:bool-map{2 false}}
+	// {:struct-map{"foo"{}}}
+}

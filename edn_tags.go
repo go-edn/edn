@@ -43,7 +43,7 @@ var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
 // AddTagFn adds fn as a converter function for tagname tags to this TagMap. fn
 // must have the signature func(T) (U, error), where T is the expected input
-// type and U is the output type.
+// type and U is the output type. See Decoder.AddTagFn for examples.
 func (tm *TagMap) AddTagFn(tagname string, fn interface{}) error {
 	// TODO: check name
 	rfn := reflect.ValueOf(fn)
@@ -75,13 +75,15 @@ func (tm *TagMap) addVal(name string, val reflect.Value) error {
 
 // AddTagFn adds fn as a converter function for tagname tags to the global
 // TagMap. fn must have the signature func(T) (U, error), where T is the
-// expected input type and U is the output type.
+// expected input type and U is the output type. See Decoder.AddTagFn for
+// examples.
 func AddTagFn(tagname string, fn interface{}) error {
 	return globalTags.AddTagFn(tagname, fn)
 }
 
 // AddTagStructs adds the struct as a matching struct for tagname tags to this
 // TagMap. val can not be a channel, function, interface or an unsafe pointer.
+// See Decoder.AddTagStruct for examples.
 func (tm *TagMap) AddTagStruct(tagname string, val interface{}) error {
 	rstruct := reflect.ValueOf(val)
 	switch rstruct.Type().Kind() {
@@ -93,7 +95,7 @@ func (tm *TagMap) AddTagStruct(tagname string, val interface{}) error {
 
 // AddTagStructs adds the struct as a matching struct for tagname tags to the
 // global TagMap. val can not be a channel, function, interface or an unsafe
-// pointer.
+// pointer. See Decoder.AddTagStruct for examples.
 func AddTagStruct(tagname string, val interface{}) error {
 	return globalTags.AddTagStruct(tagname, val)
 }

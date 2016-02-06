@@ -2,10 +2,11 @@
 
 [![GoDoc](https://godoc.org/gopkg.in/edn.v1?status.svg)](https://godoc.org/gopkg.in/edn.v1)
 
-go-edn is a Golang library to read and write EDN (extensible data notation), a
-subset of Clojure used for transferring data between applications, much like
-JSON or XML. EDN is also a very good language for configuration files, much like
-a JSON-like version of YAML.
+go-edn is a Golang library to read and write
+[EDN](https://github.com/edn-format/edn) (extensible data notation), a subset of
+Clojure used for transferring data between applications, much like JSON or XML.
+EDN is also a very good language for configuration files, much like a JSON-like
+version of YAML.
 
 This library is heavily influenced by the JSON library that ships with Go, and
 people familiar with that package should know the basics of how this library

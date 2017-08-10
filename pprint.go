@@ -6,14 +6,21 @@ package edn
 
 import (
 	"bytes"
+	"io"
 	"unicode/utf8"
 )
 
-func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
-	dst.WriteByte('\n')
-	dst.WriteString(prefix)
+var (
+	// we can't call it spaceBytes not to conflict with decode.go's spaceBytes.
+	spaceOutputBytes = []byte(" ")
+	commaOutputBytes = []byte(",")
+)
+
+func newline(dst io.Writer, prefix, indent string, depth int) {
+	dst.Write([]byte{'\n'})
+	dst.Write([]byte(prefix))
 	for i := 0; i < depth; i++ {
-		dst.WriteString(indent)
+		dst.Write([]byte(indent))
 	}
 }
 
@@ -26,7 +33,6 @@ func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
 //
 // Indent filters away whitespace, including comments and discards.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
-	origLen := dst.Len()
 	var lex lexer
 	lex.reset()
 	tokStack := newTokenStack()
@@ -37,12 +43,10 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	for {
 		bs, tt, err := d.nextToken()
 		if err != nil {
-			dst.Truncate(origLen)
 			return err
 		}
 		err = tokStack.push(tt)
 		if err != nil {
-			dst.Truncate(origLen)
 			return err
 		}
 		prevType := curType
@@ -122,20 +126,35 @@ type PPrintOpts struct {
 	MiserWidth  int
 }
 
-func pprintIndent(dst *bytes.Buffer, shift int) {
-	dst.WriteByte('\n')
-	for i := 0; i < shift; i++ {
-		dst.WriteByte(' ') // TODO: This may be slower than caching the size as a byte slice
+func pprintIndent(dst io.Writer, shift int) {
+	dst.Write([]byte{'\n'})
+
+	spaces := make([]byte, shift)
+
+	// TODO: This may be slower than caching the size as a byte slice
+	for i, _ := range spaces {
+		spaces[i] = ' '
 	}
+
+	dst.Write(spaces)
 }
 
-// PPrint appends to dst an indented form of the EDN-encoded src. This
+// PPrint writes to dst an indented form of the EDN-encoded src. This
 // implementation attempts to write idiomatic/readable EDN values, in a fashion
 // close to (but not quite equal to) clojure.pprint/pprint.
 //
 // PPrint filters away whitespace, including comments and discards.
 func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 	origLen := dst.Len()
+	err := PPrintStream(dst, bytes.NewBuffer(src), opt)
+	if err != nil {
+		dst.Truncate(origLen)
+	}
+	return err
+}
+
+// PPrintStream is an implementation of PPrint for generic readers and writers
+func PPrintStream(dst io.Writer, src io.Reader, opt *PPrintOpts) error {
 	var lex lexer
 	lex.reset()
 	tokStack := newTokenStack()
@@ -145,16 +164,15 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 	prevCollStart := 0
 	curType := tokenError
 	curSize := 0
-	d := NewDecoder(bytes.NewBuffer(src))
+	d := NewDecoder(src)
+
 	for {
 		bs, tt, err := d.nextToken()
 		if err != nil {
-			dst.Truncate(origLen)
 			return err
 		}
 		err = tokStack.push(tt)
 		if err != nil {
-			dst.Truncate(origLen)
 			return err
 		}
 		prevType := curType
@@ -170,11 +188,11 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 			switch prevType {
 			case tokenMapStart:
 				if prevSize%2 == 0 && prevSize > 0 {
-					dst.WriteByte(',')
+					dst.Write(commaOutputBytes)
 					pprintIndent(dst, shift[len(shift)-1])
 					col = shift[len(shift)-1]
 				} else if prevSize%2 == 1 { // We're a value, add a space after the key
-					dst.WriteByte(' ')
+					dst.Write(spaceOutputBytes)
 					col++
 				}
 			case tokenSetStart, tokenVectorStart, tokenListStart:
@@ -184,7 +202,7 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 					pprintIndent(dst, prevCollStart)
 					col = prevCollStart
 				} else if prevSize > 0 {
-					dst.WriteByte(' ')
+					dst.Write(spaceOutputBytes)
 					col++
 				}
 			}
@@ -195,13 +213,13 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 			col += len(bs)             // either 2 or 1
 			shift = append(shift, col) // we only use maps for now, but we'll utilise this more thoroughly later on
 		case tokenVectorEnd, tokenListEnd, tokenMapEnd: // tokenSetEnd == tokenMapEnd
-			dst.WriteByte(bs[0]) // all of these are of length 1 in bytes, so this is ok
+			dst.Write(bs[:1]) // all of these are of length 1 in bytes, so this is ok
 			prevCollStart = shift[len(shift)-1] - 1
 			shift = shift[:len(shift)-1]
 		case tokenTag:
 			bslen := utf8.RuneCount(bs)
 			dst.Write(bs)
-			dst.WriteByte(' ')
+			dst.Write(spaceOutputBytes)
 			col += bslen + 1
 		default:
 			bslen := utf8.RuneCount(bs)

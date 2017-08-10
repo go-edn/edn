@@ -127,12 +127,12 @@ type PPrintOpts struct {
 }
 
 func pprintIndent(dst io.Writer, shift int) {
-	dst.Write([]byte{'\n'})
+	spaces := make([]byte, shift+1)
 
-	spaces := make([]byte, shift)
+	spaces[0] = '\n'
 
 	// TODO: This may be slower than caching the size as a byte slice
-	for i, _ := range spaces {
+	for i := 1; i < shift; i++ {
 		spaces[i] = ' '
 	}
 
@@ -156,14 +156,14 @@ func PPrint(dst *bytes.Buffer, src []byte, opt *PPrintOpts) error {
 // PPrintStream is an implementation of PPrint for generic readers and writers
 func PPrintStream(dst io.Writer, src io.Reader, opt *PPrintOpts) error {
 	var lex lexer
+	var col, prevCollStart, curSize int
+	var prevColl bool
+
 	lex.reset()
 	tokStack := newTokenStack()
-	shift := []int{0}
-	col := 0
-	prevColl := false
-	prevCollStart := 0
+
+	shift := make([]int, 1, 8) // pre-allocate some space
 	curType := tokenError
-	curSize := 0
 	d := NewDecoder(src)
 
 	for {
@@ -213,7 +213,7 @@ func PPrintStream(dst io.Writer, src io.Reader, opt *PPrintOpts) error {
 			col += len(bs)             // either 2 or 1
 			shift = append(shift, col) // we only use maps for now, but we'll utilise this more thoroughly later on
 		case tokenVectorEnd, tokenListEnd, tokenMapEnd: // tokenSetEnd == tokenMapEnd
-			dst.Write(bs[:1]) // all of these are of length 1 in bytes, so this is ok
+			dst.Write(bs) // all of these are of length 1 in bytes, so this is ok
 			prevCollStart = shift[len(shift)-1] - 1
 			shift = shift[:len(shift)-1]
 		case tokenTag:

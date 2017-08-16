@@ -24,21 +24,31 @@ func newline(dst io.Writer, prefix, indent string, depth int) {
 	}
 }
 
-// Indent appends to dst an indented form of the EDN-encoded src. Each EDN
+// Indent writes to dst an indented form of the EDN-encoded src. Each EDN
 // collection begins on a new, indented line beginning with prefix followed by
 // one or more copies of indent according to the indentation nesting. The data
-// appended to dst does not begin with the prefix nor any indentation, and has
+// written to dst does not begin with the prefix nor any indentation, and has
 // no trailing newline, to make it easier to embed inside other formatted EDN
 // data.
 //
 // Indent filters away whitespace, including comments and discards.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
+	origLen := dst.Len()
+	err := IndentStream(dst, bytes.NewBuffer(src), prefix, indent)
+	if err != nil {
+		dst.Truncate(origLen)
+	}
+	return err
+}
+
+// IndentStream is an implementation of PPrint for generic readers and writers
+func IndentStream(dst io.Writer, src io.Reader, prefix, indent string) error {
 	var lex lexer
 	lex.reset()
 	tokStack := newTokenStack()
 	curType := tokenError
 	curSize := 0
-	d := NewDecoder(bytes.NewBuffer(src))
+	d := NewDecoder(src)
 	depth := 0
 	for {
 		bs, tt, err := d.nextToken()
@@ -58,7 +68,7 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 		switch tt {
 		case tokenMapStart, tokenVectorStart, tokenListStart, tokenSetStart:
 			if prevType == tokenMapStart {
-				dst.WriteByte(' ')
+				dst.Write([]byte{' '})
 			} else if depth > 0 {
 				newline(dst, prefix, indent, depth)
 			}
@@ -70,39 +80,39 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 				newline(dst, prefix, indent, depth)
 			}
 			// all of these are of length 1 in bytes, so utilise this for perf
-			dst.WriteByte(bs[0])
+			dst.Write(bs)
 		case tokenTag:
 			// need to know what the previous type was.
 			switch prevType {
 			case tokenMapStart:
 				if prevSize%2 == 0 { // If previous size modulo 2 is equal to 0, we're a key
 					if prevSize > 0 {
-						dst.WriteByte(',')
+						dst.Write(commaOutputBytes)
 					}
 					newline(dst, prefix, indent, depth)
 				} else { // We're a value, add a space after the key
-					dst.WriteByte(' ')
+					dst.Write(spaceOutputBytes)
 				}
 				dst.Write(bs)
-				dst.WriteByte(' ')
+				dst.Write(spaceOutputBytes)
 			case tokenSetStart, tokenVectorStart, tokenListStart:
 				newline(dst, prefix, indent, depth)
 				dst.Write(bs)
-				dst.WriteByte(' ')
+				dst.Write(spaceOutputBytes)
 			default: // tokenError or nested tag
 				dst.Write(bs)
-				dst.WriteByte(' ')
+				dst.Write(spaceOutputBytes)
 			}
 		default:
 			switch prevType {
 			case tokenMapStart:
 				if prevSize%2 == 0 { // If previous size modulo 2 is equal to 0, we're a key
 					if prevSize > 0 {
-						dst.WriteByte(',')
+						dst.Write(commaOutputBytes)
 					}
 					newline(dst, prefix, indent, depth)
 				} else { // We're a value, add a space after the key
-					dst.WriteByte(' ')
+					dst.Write(spaceOutputBytes)
 				}
 				dst.Write(bs)
 			case tokenSetStart, tokenVectorStart, tokenListStart:

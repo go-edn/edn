@@ -142,7 +142,7 @@ func pprintIndent(dst io.Writer, shift int) {
 	spaces[0] = '\n'
 
 	// TODO: This may be slower than caching the size as a byte slice
-	for i := 1; i < shift; i++ {
+	for i := 1; i <= shift; i++ {
 		spaces[i] = ' '
 	}
 

@@ -1,4 +1,4 @@
-// Copyright 2015 Jean Niklas L'orange.  All rights reserved.
+// Copyright 2015-2017 Jean Niklas L'orange.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -94,5 +94,47 @@ func TestSpacing(t *testing.T) {
 	}
 	if string(bs) != `{value \a data \b}` {
 		t.Errorf("Expected result to be `{value \\a data \\b}`, but was `%s`", string(bs))
+	}
+}
+
+func TestMarshalRawMessageValue(t *testing.T) {
+	type Foo struct {
+		SomeVal   string `edn:"some-val"`
+		Leftovers RawMessage
+		OtherVal  string `edn:"other-val"`
+	}
+
+	f := Foo{
+		SomeVal:   "egg",
+		Leftovers: []byte(`[\space #foo bar :baz 100 {#{} 1.0 "zap" nil}]`),
+		OtherVal:  "spam",
+	}
+	bs, err := Marshal(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bs) != `{:some-val"egg":leftovers [\space #foo bar :baz 100{#{}1.0"zap"nil}] :other-val"spam"}` {
+		t.Errorf("Expected result to be `{:some-val\"egg\":leftovers [\\space #foo bar :baz 100{#{}1.0\"zap\"nil}] :other-val\"spam\"}`, but was `%s`", string(bs))
+	}
+}
+
+func TestUnmarshalRawMessageValue(t *testing.T) {
+	type Foo struct {
+		SomeVal   string `edn:"some-val"`
+		Leftovers RawMessage
+		OtherVal  string `edn:"other-val"`
+	}
+	const raw = `{
+  :some-val"egg"
+  :leftovers [\space #foo bar :baz 100{#{} 1.0 "zap" nil}]
+  :other-val"spam"
+}`
+	var f Foo
+	err := UnmarshalString(raw, &f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(f.Leftovers) != `[\space #foo bar :baz 100{#{} 1.0 "zap" nil}]` {
+		t.Errorf("Expected result to be `[\\space #foo bar :baz 100{#{} 1.0 \"zap\" nil}]`, but was `%s`", string(f.Leftovers))
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 Jean Niklas L'orange.  All rights reserved.
+// Copyright 2015-2017 Jean Niklas L'orange.  All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,8 +7,31 @@ package edn
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 )
+
+// RawMessage is a raw encoded, but valid, EDN value. It implements Marshaler
+// and Unmarshaler and can be used to delay EDN decoding or precompute an EDN
+// encoding.
+type RawMessage []byte
+
+// MarshalEDN returns m as the EDN encoding of m.
+func (m RawMessage) MarshalEDN() ([]byte, error) {
+	if m == nil {
+		return []byte("nil"), nil
+	}
+	return m, nil
+}
+
+// UnmarshalEDN sets *m to a copy of data.
+func (m *RawMessage) UnmarshalEDN(data []byte) error {
+	if m == nil {
+		return errors.New("edn.RawMessage: UnmarshalEDN on nil pointer")
+	}
+	*m = append((*m)[0:0], data...)
+	return nil
+}
 
 // A Keyword is an EDN keyword without : prepended in front.
 type Keyword string

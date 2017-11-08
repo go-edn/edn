@@ -230,6 +230,17 @@ func TestUnmarshalEDN(t *testing.T) {
 			t.Logf("Was %s", tm)
 		}
 	}
+
+	data = "#{:foo :bar :baz :rock'n'roll :ain't_going-anywhere}"
+	expected = testUnmarshalEDN("set elements")
+	err = UnmarshalString(data, &tm)
+	if err != nil {
+		t.Errorf("Expected '%s' to successfully read into testUnmarshalEDN", data)
+		t.Log(err.Error())
+	} else if expected != tm {
+		t.Error("Mismatch between testUnmarshalEDN unmarshaling and the expected value")
+		t.Logf("Was %s, expected %s", tm, expected)
+	}
 }
 
 type vectorCounter int

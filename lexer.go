@@ -102,7 +102,7 @@ func okSymbolFirst(r rune) bool {
 
 func okSymbol(r rune) bool {
 	switch r {
-	case '.', '*', '+', '!', '-', '_', '?', '$', '%', '&', '=', '<', '>', ':', '#':
+	case '.', '*', '+', '!', '-', '_', '?', '$', '%', '&', '=', '<', '>', ':', '#', '\'':
 		return true
 	}
 	return false

@@ -39,6 +39,81 @@ func TestEncoding(t *testing.T) {
 		[]string{"foo", "bar"},
 	}
 	testEncode(t, val, `{the-set #{3 4}:slice #{"foo""bar"}}`)
+
+	val = Tag{
+		Tagname: "some/tag",
+		Value:   1,
+	}
+	testEncode(t, val, `#some/tag 1`)
+
+	val = Tag{
+		Tagname: "some/tag",
+		Value:   struct{ X int }{1},
+	}
+	testEncode(t, val, `#some/tag{:x 1}`)
+
+	val = Tag{
+		Tagname: "a",
+		Value: Tag{
+			Tagname: "b",
+			Value: Tag{
+				Tagname: "c",
+				Value:   nil,
+			},
+		},
+	}
+	testEncode(t, val, `#a #b #c nil`)
+
+	val = Tag{
+		Tagname: "a",
+		Value: Tag{
+			Tagname: "b",
+			Value:   1,
+		},
+	}
+	testEncode(t, val, `#a #b 1`)
+
+	val = Tag{
+		Tagname: "a",
+		Value: Tag{
+			Tagname: "b",
+			Value:   "c",
+		},
+	}
+	testEncode(t, val, `#a #b"c"`)
+
+	val = Tag{
+		Tagname: "a",
+		Value:   []int{1},
+	}
+	testEncode(t, val, `#a[1]`)
+
+	val = Tag{
+		Tagname: "a",
+		Value: Tag{
+			Tagname: "b",
+			Value:   []int{1},
+		},
+	}
+	testEncode(t, val, `#a #b[1]`)
+
+	val = Tag{
+		Tagname: "some/tag",
+		Value: Tag{
+			Tagname: "inner",
+			Value:   struct{ X int }{1},
+		},
+	}
+	testEncode(t, val, `#some/tag #inner{:x 1}`)
+
+	val = A{}
+	testEncode(t, val, `#tag/a{:x 1}`)
+
+	val = Tag{
+		Tagname: "outer",
+		Value:   A{},
+	}
+	testEncode(t, val, `#outer #tag/a{:x 1}`)
 }
 
 func testEncode(t *testing.T, val interface{}, expects string) {
@@ -48,4 +123,14 @@ func testEncode(t *testing.T, val interface{}, expects string) {
 	} else if !bytes.Equal([]byte(expects), bs) {
 		t.Errorf("Expected to see '%s', but got '%s' instead", expects, string(bs))
 	}
+}
+
+type A struct{}
+
+func (a A) MarshalEDN() ([]byte, error) {
+	t := Tag{
+		Tagname: "tag/a",
+		Value:   struct{ X int }{1},
+	}
+	return Marshal(t)
 }

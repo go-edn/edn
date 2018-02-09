@@ -63,7 +63,7 @@ type Tag struct {
 }
 
 func (t Tag) String() string {
-	return fmt.Sprintf("#%s %s", t.Tagname, t.Value)
+	return fmt.Sprintf("#%s %v", t.Tagname, t.Value)
 }
 
 func (t Tag) MarshalEDN() ([]byte, error) {

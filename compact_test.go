@@ -23,6 +23,12 @@ func TestConvert(t *testing.T) {
 	// Removes comments?
 	checkConvert(t, "; just a comment, I am ignored", "")
 	checkConvert(t, "foo;; bar\nbaz", "foo\nbaz")
+	// Doesn't break on delimiters
+	checkConvert(t, "f(x)", "f(x)")
+	checkConvert(t, "#a[1]", "#a[1]")
+	checkConvert(t, "#a #b[1]", "#a #b[1]")
+	checkConvert(t, "#a #b{:x 1}", "#a #b{:x 1}")
+	checkConvert(t, "#tag/a{:x 1}", "#tag/a{:x 1}")
 }
 
 func checkConvert(t *testing.T, input, expected string) {

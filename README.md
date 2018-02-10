@@ -61,7 +61,7 @@ types:
 ```go
 type Animal struct {
 	Name string
-    Type string `edn:"kind"`
+	Type string `edn:"kind"`
 }
 
 type Person struct {

@@ -605,7 +605,7 @@ func (bits floatEncoder) encode(e *encodeState, v reflect.Value) {
 	e.ensureDelim()
 	b := strconv.AppendFloat(e.scratch[:0], f, 'g', -1, int(bits))
 	if ix := bytes.IndexAny(b, ".eE"); ix < 0 {
-		b = append(b, '.')
+		b = append(b, '.', '0')
 	}
 	e.Write(b)
 	e.needsDelim = true

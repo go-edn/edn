@@ -106,7 +106,7 @@ it depends on `math/big.Float`, go-edn requires Go 1.5 or higher.
 
 ## License
 
-Copyright © 2015-2016 Jean Niklas L'orange
+Copyright © 2015-2018 Jean Niklas L'orange and [contributors](https://github.com/go-edn/edn/graphs/contributors)
 
 Distributed under the BSD 3-clause license, which is available in the file
 LICENSE.

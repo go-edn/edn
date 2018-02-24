@@ -61,9 +61,9 @@ func Compact(dst *bytes.Buffer, src []byte) error {
 			start = pos
 		case lexEndPrev:
 			dst.Write(src[start:ppos])
-			needsDelim = tokNeedsDelim(lex.token)
 			lex.reset()
 			lss := lex.state(r)
+			needsDelim = tokNeedsDelim(lex.token)
 			switch lss {
 			case lexIgnore:
 				prevIgnore = r

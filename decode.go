@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -213,6 +214,17 @@ func (e *UnmarshalTypeError) Error() string {
 	return "edn: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
+// UnhashableError is an error which occurs when the decoder attempted to assign
+// an unhashable key to a map or set. The position close to where value was
+// found is provided to help debugging.
+type UnhashableError struct {
+	Position int64
+}
+
+func (e *UnhashableError) Error() string {
+	return "edn: unhashable type at position " + strconv.FormatInt(e.Position, 10) + " in input"
+}
+
 // Decode reads the next EDN-encoded value from its input and stores it in the
 // value pointed to by v.
 //
@@ -221,10 +233,17 @@ func (e *UnmarshalTypeError) Error() string {
 func (d *Decoder) Decode(val interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			if _, ok := r.(runtime.Error); ok {
-				panic(r)
+			// if unhashable, return ErrUnhashable. Else panic unless it's an error
+			// from the decoder itself.
+			if rerr, ok := r.(runtime.Error); ok {
+				if strings.Contains(rerr.Error(), "unhashable") {
+					err = &UnhashableError{Position: d.lex.position}
+				} else {
+					panic(r)
+				}
+			} else {
+				err = r.(error)
 			}
-			err = r.(error)
 		}
 	}()
 

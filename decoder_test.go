@@ -452,7 +452,12 @@ func TestUnhashableBigInt(t *testing.T) {
 	input := "#{0N}"
 	var val interface{}
 	if err := UnmarshalString(input, &val); err != nil {
-		t.Errorf("unexpected parsing error: %q: %s", input, err)
+		_, unhashable := err.(*UnhashableError)
+		if !unhashable {
+			t.Errorf("unexpected parsing error: %q: %s", input, err)
+		}
+	} else {
+		t.Errorf("expected '%s' to be unparseable", input)
 	}
 }
 
@@ -460,6 +465,11 @@ func TestUnhashableTaggedList(t *testing.T) {
 	input := "{#g()0}"
 	var val interface{}
 	if err := UnmarshalString(input, &val); err != nil {
-		t.Errorf("unexpected parsing error: %q: %s", input, err)
+		_, unhashable := err.(*UnhashableError)
+		if !unhashable {
+			t.Errorf("unexpected parsing error: %q: %s", input, err)
+		}
+	} else {
+		t.Errorf("expected '%s' to be unparseable", input)
 	}
 }

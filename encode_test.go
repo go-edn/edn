@@ -14,6 +14,11 @@ func TestEncoding(t *testing.T) {
 	testEncode(t, Symbol("foo"), "foo")
 	testEncode(t, "foo", `"foo"`)
 
+	testEncode(t, 1, "1")
+	testEncode(t, -1.2, "-1.2")
+	testEncode(t, 3.0, "3.0")
+	testEncode(t, 10E12, "1e+13")
+
 	var val interface{}
 
 	val = struct {
@@ -39,6 +44,19 @@ func TestEncoding(t *testing.T) {
 		[]string{"foo", "bar"},
 	}
 	testEncode(t, val, `{the-set #{3 4}:slice #{"foo""bar"}}`)
+
+	val = map[float64]struct{}{
+		1.0: {},
+	}
+	testEncode(t, val, `#{1.0}`)
+
+	val = Tag{
+		Tagname: "floatset",
+		Value: map[float64]struct{}{
+			1.0: {},
+		},
+	}
+	testEncode(t, val, `#floatset #{1.0}`)
 }
 
 func testEncode(t *testing.T, val interface{}, expects string) {

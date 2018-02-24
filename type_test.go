@@ -70,7 +70,7 @@ func TestTagRunes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(bs) != `{:value\space}` {
-		t.Error("Expected result to be `{:value\\space}`, but was `%s`", string(bs))
+		t.Errorf("Expected result to be `{:value\\space}`, but was `%s`", string(bs))
 	}
 	f.Value = '\''
 	bs, err = Marshal(f)
@@ -78,7 +78,7 @@ func TestTagRunes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(bs) != `{:value\'}` {
-		t.Error("Expected result to be `{:value\\'}`, but was `%s`", string(bs))
+		t.Errorf("Expected result to be `{:value\\'}`, but was `%s`", string(bs))
 	}
 }
 

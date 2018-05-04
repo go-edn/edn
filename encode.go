@@ -300,6 +300,8 @@ func (e *UnsupportedValueError) Error() string {
 	return "edn: unsupported value: " + e.Str
 }
 
+// A MarshalerError is returned by Marshal when encoding a type with a
+// MarshalEDN function fails.
 type MarshalerError struct {
 	Type reflect.Type
 	Err  error
@@ -468,9 +470,8 @@ func newTypeEncoder(t reflect.Type, tagType tagType, allowAddr bool) encoderFunc
 	case reflect.Int32:
 		if tagType == tagRune {
 			return runeEncoder
-		} else {
-			return intEncoder
 		}
+		return intEncoder
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
 		return intEncoder
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:

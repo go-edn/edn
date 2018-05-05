@@ -152,3 +152,24 @@ func (a A) MarshalEDN() ([]byte, error) {
 	}
 	return Marshal(t)
 }
+
+func TestJSONEncoding(t *testing.T) {
+	jsonOnly := struct {
+		Data string `json:"json"`
+	}{Data: "hi"}
+	jsonAndEdn := struct {
+		Data string `json:"json" edn:"edn"`
+	}{Data: "hi"}
+
+	UseJSONAsFallback(false)
+	testEncode(t, jsonOnly, `{:data"hi"}`)
+	testEncode(t, jsonAndEdn, `{:edn"hi"}`)
+
+	UseJSONAsFallback(true)
+	testEncode(t, jsonOnly, `{:json"hi"}`)
+	testEncode(t, jsonAndEdn, `{:edn"hi"}`)
+
+	UseJSONAsFallback(false)
+	testEncode(t, jsonOnly, `{:data"hi"}`)
+	testEncode(t, jsonAndEdn, `{:edn"hi"}`)
+}

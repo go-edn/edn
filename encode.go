@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -410,6 +411,7 @@ func typeEncoder(t reflect.Type, tagType tagType) encoderFunc {
 	if f != nil {
 		return f
 	}
+	couldUseJSON := readCanUseJSONTag()
 
 	// To deal with recursive types, populate the map with an
 	// indirect func before we build it. This type waits on the
@@ -432,6 +434,11 @@ func typeEncoder(t reflect.Type, tagType tagType) encoderFunc {
 	f = newTypeEncoder(t, tagType, true)
 	wg.Done()
 	encoderCache.Lock()
+	if couldUseJSON != readCanUseJSONTag() {
+		// cache has been invalidated, unlock and retry recursively.
+		encoderCache.Unlock()
+		return typeEncoder(t, tagType)
+	}
 	encoderCache.m[tac] = f
 	encoderCache.Unlock()
 	return f
@@ -1185,6 +1192,9 @@ func typeFields(t reflect.Type) []field {
 					continue
 				}
 				tag := sf.Tag.Get("edn")
+				if tag == "" && readCanUseJSONTag() {
+					tag = sf.Tag.Get("json")
+				}
 				if tag == "-" {
 					continue
 				}
@@ -1342,6 +1352,39 @@ func dominantField(fields []field) (field, bool) {
 	return fields[0], true
 }
 
+var canUseJSONTag int32
+
+func readCanUseJSONTag() bool {
+	return atomic.LoadInt32(&canUseJSONTag) == 1
+}
+
+// UseJSONAsFallback can be set to true to let go-edn parse structs with
+// information from the `json` tag for encoding and decoding type fields if not
+// the `edn` tag field is set. This is not threadsafe: Encoding and decoding
+// happening while this is called may return results that mix json and non-json
+// tag reading. Preferably you call this in an init() function to ensure it is
+// either set or unset.
+func UseJSONAsFallback(val bool) {
+	set := int32(0)
+	if val {
+		set = 1
+	}
+
+	// Here comes the funny stuff: Cache invalidation. Right now we lock and
+	// unlock these independently of eachother, so it's fine to lock them in this
+	// order. However, if we decide to change this later on, the only reasonable
+	// change would be that you may grab the encoderCache lock before the
+	// fieldCache lock. Therefore we do it in this order, although it should not
+	// matter strictly speaking.
+	encoderCache.Lock()
+	fieldCache.Lock()
+	atomic.StoreInt32(&canUseJSONTag, set)
+	fieldCache.m = nil
+	encoderCache.m = nil
+	fieldCache.Unlock()
+	encoderCache.Unlock()
+}
+
 var fieldCache struct {
 	sync.RWMutex
 	m map[reflect.Type][]field
@@ -1355,6 +1398,7 @@ func cachedTypeFields(t reflect.Type) []field {
 	if f != nil {
 		return f
 	}
+	couldUseJSON := readCanUseJSONTag()
 
 	// Compute fields without lock.
 	// Might duplicate effort but won't hold other computations back.
@@ -1364,6 +1408,11 @@ func cachedTypeFields(t reflect.Type) []field {
 	}
 
 	fieldCache.Lock()
+	if couldUseJSON != readCanUseJSONTag() {
+		// cache has been invalidated, unlock and retry recursively.
+		fieldCache.Unlock()
+		return cachedTypeFields(t)
+	}
 	if fieldCache.m == nil {
 		fieldCache.m = map[reflect.Type][]field{}
 	}

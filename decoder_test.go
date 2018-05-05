@@ -489,3 +489,69 @@ func TestUnhashableTaggedList(t *testing.T) {
 		t.Errorf("expected '%s' to be unparseable", input)
 	}
 }
+
+func TestJSONDecoding(t *testing.T) {
+	var jsonOnly struct {
+		Data string `json:"json"`
+	}
+	var jsonAndEdn struct {
+		Data string `json:"json" edn:"edn"`
+	}
+	inputData := `{:data"hi"}`
+	inputEDN := `{:edn"hi"}`
+	inputJSON := `{:json"hi"}`
+
+	testEmpty := func(obj interface{}, str *string, input string) {
+		*str = ""
+		if err := UnmarshalString(input, obj); err != nil {
+			t.Errorf("Expected %q to parse successfully into #%v", input, obj)
+			t.Log(err.Error())
+		}
+		if *str != "" {
+			t.Errorf("Expected %q to not parse into fields, but got %#v", input, obj)
+		}
+	}
+	testHi := func(obj interface{}, str *string, input string) {
+		*str = ""
+		if err := UnmarshalString(input, obj); err != nil {
+			t.Errorf("Expected %q to parse successfully into #%v", input, obj)
+			t.Log(err.Error())
+		}
+		if *str != "hi" {
+			t.Errorf(`Expected %q to not parse "hi" into .Data, but got %#v`, input, obj)
+		}
+	}
+
+	UseJSONAsFallback(false)
+
+	// json tag only
+	testHi(&jsonOnly, &jsonOnly.Data, inputData)
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputEDN)
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputJSON)
+	// json + edn tag
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputData)
+	testHi(&jsonAndEdn, &jsonAndEdn.Data, inputEDN)
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputJSON)
+
+	UseJSONAsFallback(true)
+
+	// json tag only
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputData)
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputEDN)
+	testHi(&jsonOnly, &jsonOnly.Data, inputJSON)
+	// json + edn tag
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputData)
+	testHi(&jsonAndEdn, &jsonAndEdn.Data, inputEDN)
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputJSON)
+
+	UseJSONAsFallback(false)
+
+	// json tag only
+	testHi(&jsonOnly, &jsonOnly.Data, inputData)
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputEDN)
+	testEmpty(&jsonOnly, &jsonOnly.Data, inputJSON)
+	// json + edn tag
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputData)
+	testHi(&jsonAndEdn, &jsonAndEdn.Data, inputEDN)
+	testEmpty(&jsonAndEdn, &jsonAndEdn.Data, inputJSON)
+}

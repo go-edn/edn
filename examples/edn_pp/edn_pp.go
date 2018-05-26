@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 // Typically, you'd also include timestamps here. Imagine that they are here.

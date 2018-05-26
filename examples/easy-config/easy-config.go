@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/satori/go.uuid"
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 type Config struct {

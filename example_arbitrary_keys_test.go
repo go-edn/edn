@@ -3,7 +3,7 @@ package edn_test
 import (
 	"fmt"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 type Point3 struct {

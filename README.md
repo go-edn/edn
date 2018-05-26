@@ -1,6 +1,6 @@
 # Go implementation of EDN, extensible data notation
 
-[![GoDoc](https://godoc.org/gopkg.in/edn.v1?status.svg)](https://godoc.org/gopkg.in/edn.v1)
+[![GoDoc](https://godoc.org/olympos.io/encoding/edn?status.svg)](https://godoc.org/olympos.io/encoding/edn)
 
 go-edn is a Golang library to read and write
 [EDN](https://github.com/edn-format/edn) (extensible data notation), a subset of
@@ -20,24 +20,27 @@ If you wonder why you should (not) use EDN, you can have a look at the
 
 ## Installation and Usage
 
-The import path for the package is *gopkg.in/edn.v1*
+The import path for the package is `olympos.io/encoding/edn`
 
 To install it, run:
 
 ```shell
-go get gopkg.in/edn.v1
+go get olympos.io/encoding/edn
 ```
 
-To use it in your project, you import `gopkg.in/edn.v1` and refer to it as `edn`
+To use it in your project, you import `olympos.io/encoding/edn` and refer to it as `edn`
 like this:
 
 ```go
-import "gopkg.in/edn.v1"
+import "olympos.io/encoding/edn"
 
 //...
 
 edn.DoStuff()
 ```
+
+The previous import path of this library was `gopkg.in/edn.v1`, which is still
+permanently supported.
 
 ## Quickstart
 
@@ -50,7 +53,7 @@ go-edn also ships with keywords, symbols and tags as types.
 
 For a longer introduction on how to use the library, see
 [introduction.md](docs/introduction.md). If you're familiar with the JSON
-package, then the [API Documentation](https://godoc.org/gopkg.in/edn.v1) might
+package, then the [API Documentation](https://godoc.org/olympos.io/encoding/edn) might
 be the only thing you need.
 
 ## Example Usage
@@ -74,7 +77,7 @@ type Person struct {
 With go-edn, we can do as follows to read and write these types:
 
 ```go
-import "gopkg.in/edn.v1"
+import "olympos.io/encoding/edn"
 
 //...
 

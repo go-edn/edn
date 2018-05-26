@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 type Config struct {

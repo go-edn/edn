@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 func ExampleDecoder_AddTagFn_duration() {

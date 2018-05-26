@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 type PermissionSet int

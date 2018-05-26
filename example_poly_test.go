@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/edn.v1"
+	"olympos.io/encoding/edn"
 )
 
 type Notifiable interface {
@@ -24,15 +24,15 @@ func (u *User) Notify() {
 }
 
 type Group struct {
-	GroupId int
+	GroupID int
 }
 
 func (g Group) MarshalEDN() ([]byte, error) {
-	return edn.Marshal(edn.Tag{"myapp/group", g.GroupId})
+	return edn.Marshal(edn.Tag{"myapp/group", g.GroupID})
 }
 
 func (g *Group) Notify() {
-	fmt.Printf("Notified group with id %d.\n", g.GroupId)
+	fmt.Printf("Notified group with id %d.\n", g.GroupID)
 }
 
 var notifyTagMap edn.TagMap

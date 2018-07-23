@@ -9,22 +9,23 @@ import (
 	"testing"
 )
 
-func TestPPrintSimple(t *testing.T) {
-	inputs := []string{
-		"{}",
-		"[]",
-		"{:a 42}",
+func TestPPrint(t *testing.T) {
+	inputs := map[string]string{
+		"{}":          "{}",
+		"[]":          "[]",
+		"{:a 42}":     "{:a 42}",
+		"{:a 1 :b 2}": "{:a 1,\n :b 2}",
 	}
 
-	for _, input := range inputs {
+	for input, expected := range inputs {
 		buff := bytes.NewBuffer(nil)
 		if err := PPrint(buff, []byte(input), &PPrintOpts{}); err != nil {
-			t.Errorf(`PPrint("%s") failed, but expected success: %v`, input, err)
+			t.Errorf(`PPrint(%q) failed, but expected success: %v`, input, err)
 		}
 
 		output := string(buff.Bytes())
-		if output != input {
-			t.Errorf(`Expected PPrint("%s") to be "%s"; was "%s"`, input, input, output)
+		if output != expected {
+			t.Errorf(`Expected PPrint(%q) to be %q; was %q`, input, expected, output)
 		}
 	}
 }

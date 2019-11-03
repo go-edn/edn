@@ -13,9 +13,10 @@ people familiar with that package should know the basics of how this library
 works. In fact, this should be close to a drop-in replacement for the
 `encoding/json` package if you only use basic functionality.
 
-This implementation is fully working and (presumably) stable.
+This implementation is complete, stable, and presumably also bug free. This
+is why you don't see any changes in the repository.
 
-If you wonder why you should (not) use EDN, you can have a look at the
+If you wonder why you should (or should not) use EDN, you can have a look at the
 [why](docs/why.md) document.
 
 ## Installation and Usage
@@ -109,7 +110,7 @@ it depends on `math/big.Float`, go-edn requires Go 1.5 or higher.
 
 ## License
 
-Copyright © 2015-2018 Jean Niklas L'orange and [contributors](https://github.com/go-edn/edn/graphs/contributors)
+Copyright © 2015-2019 Jean Niklas L'orange and [contributors](https://github.com/go-edn/edn/graphs/contributors)
 
 Distributed under the BSD 3-clause license, which is available in the file
 LICENSE.

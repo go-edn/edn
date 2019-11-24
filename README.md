@@ -99,7 +99,7 @@ func ReturnData() (Person, error) {
 If you want to write that user again, just `Marshal` it:
 
 ```go
-	bs, err := edn.Marshal(user)
+bs, err := edn.Marshal(user)
 ```
 
 ## Dependencies

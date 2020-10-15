@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -483,6 +484,23 @@ func TestUnhashableTaggedList(t *testing.T) {
 	if err := UnmarshalString(input, &val); err != nil {
 		_, unhashable := err.(*UnhashableError)
 		if !unhashable {
+			t.Errorf("unexpected parsing error: %q: %s", input, err)
+		}
+	} else {
+		t.Errorf("expected '%s' to be unparseable", input)
+	}
+}
+
+func TestUnknownField(t *testing.T) {
+	input := "{:hello 1}"
+	var val struct {
+		Goodbye int
+	}
+	d := NewDecoder(strings.NewReader(input))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&val); err != nil {
+		_, unknown := err.(*UnknownFieldError)
+		if !unknown {
 			t.Errorf("unexpected parsing error: %q: %s", input, err)
 		}
 	} else {

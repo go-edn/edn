@@ -149,6 +149,13 @@ func (d *Decoder) mathContext() *MathContext {
 	return &GlobalMathContext
 }
 
+// DisallowUnknownFields causes the Decoder to return an error when the
+// destination is a struct and the input contains keys which do not match any
+// non-ignored, exported fields in the destination.
+func (d *Decoder) DisallowUnknownFields() {
+	d.disallowUnknownFields = true
+}
+
 // Unmarshaler is the interface implemented by objects that can unmarshal an EDN
 // description of themselves. The input can be assumed to be a valid encoding of
 // an EDN value. UnmarshalEDN must copy the EDN data if it wishes to retain the
@@ -171,6 +178,8 @@ const (
 
 // A Decoder reads and decodes EDN objects from an input stream.
 type Decoder struct {
+	disallowUnknownFields bool
+
 	lex        *lexer
 	savedError error
 	rd         *bufio.Reader
@@ -223,6 +232,15 @@ type UnhashableError struct {
 
 func (e *UnhashableError) Error() string {
 	return "edn: unhashable type at position " + strconv.FormatInt(e.Position, 10) + " in input"
+}
+
+type UnknownFieldError struct {
+	Field string       // the field name
+	Type  reflect.Type // type of Go struct with a missing field
+}
+
+func (e *UnknownFieldError) Error() string {
+	return "edn: cannot find a field '" + e.Field + "' in a struct " + e.Type.String() + " to unmarshal into"
 }
 
 // Decode reads the next EDN-encoded value from its input and stores it in the
@@ -670,6 +688,8 @@ func (d *Decoder) ednmap(v reflect.Value) {
 					}
 					subv = subv.Field(i)
 				}
+			} else if d.disallowUnknownFields {
+				d.error(&UnknownFieldError{string(key), v.Type()})
 			}
 			// If subv not set, value() will just skip.
 			d.value(subv)

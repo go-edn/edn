@@ -145,6 +145,18 @@ func TestAddTag(t *testing.T) {
 	}
 }
 
+func TestAddTagFnWithMissingError(t *testing.T) {
+	missingErr := func(val int) int {
+		return val + 1
+	}
+	d := NewDecoder(bytes.NewBufferString(``))
+	if err := d.AddTagFn("inc", missingErr); err == nil {
+		t.Error("Expected wrong arity tag function to cause error.")
+	} else {
+		t.Logf("Encountered error when adding tag function: %s", err)
+	}
+}
+
 func TestAssignInterface(t *testing.T) {
 	var v fmt.Stringer
 	instStr := `#inst "2015-08-29T21:28:34.311-00:00"`

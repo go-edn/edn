@@ -89,6 +89,12 @@ func AddTagFn(tagname string, fn interface{}) error {
 	return globalTags.AddTagFn(tagname, fn)
 }
 
+// MustAddTagFn adds fn as a converter function for tagname tags to the global
+// TagMap like AddTagFn, except this function panics if the tag could not be added.
+func MustAddTagFn(tagname string, fn interface{}) {
+	globalTags.MustAddTagFn(tagname, fn)
+}
+
 // AddTagStructs adds the struct as a matching struct for tagname tags to this
 // TagMap. val can not be a channel, function, interface or an unsafe pointer.
 // See Decoder.AddTagStruct for examples.

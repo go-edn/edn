@@ -124,6 +124,12 @@ func (d *Decoder) AddTagFn(tagname string, fn interface{}) error {
 	return d.tagmap.AddTagFn(tagname, fn)
 }
 
+// MustAddTagFn adds a tag function to the decoder's TagMap like AddTagFn,
+// except this function also panics if the tag could not be added.
+func (d *Decoder) MustAddTagFn(tagname string, fn interface{}) {
+	d.tagmap.MustAddTagFn(tagname, fn)
+}
+
 // AddTagStruct adds a tag struct to the decoder's TagMap. Note that TagMaps are
 // mutable: If Decoder A and B share TagMap, then adding a tag struct to one
 // may modify both.

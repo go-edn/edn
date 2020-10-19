@@ -145,6 +145,29 @@ func TestAddTag(t *testing.T) {
 	}
 }
 
+func TestAddTagFnWithMissingError(t *testing.T) {
+	missingErr := func(val int) int {
+		return val + 1
+	}
+	d := NewDecoder(bytes.NewBufferString(``))
+	if err := d.AddTagFn("inc", missingErr); err == nil {
+		t.Error("Expected wrong arity tag function to cause error.")
+	} else {
+		t.Logf("Encountered error when adding tag function: %s", err)
+	}
+}
+
+func TestMustAddTagFnWillPanic(t *testing.T) {
+	defer func() { recover() }() // see [[https://stackoverflow.com/a/62028796/6247387][here]].
+
+	missingErr := func(val int) int {
+		return val + 1
+	}
+	d := NewDecoder(bytes.NewBufferString(``))
+	d.MustAddTagFn("inc", missingErr)
+	t.Error("Expected must add tag fn to panic but it didn't")
+}
+
 func TestAssignInterface(t *testing.T) {
 	var v fmt.Stringer
 	instStr := `#inst "2015-08-29T21:28:34.311-00:00"`

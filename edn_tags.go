@@ -58,6 +58,14 @@ func (tm *TagMap) AddTagFn(tagname string, fn interface{}) error {
 	return tm.addVal(tagname, rfn)
 }
 
+// MustAddTagFn adds fn as a converter function for tagname tags to this TagMap
+// like AddTagFn, except this function panics if the tag could not be added.
+func (tm *TagMap) MustAddTagFn(tagname string, fn interface{}) {
+	if err := tm.AddTagFn(tagname, fn); err != nil {
+		panic(err)
+	}
+}
+
 func (tm *TagMap) addVal(name string, val reflect.Value) error {
 	tm.Lock()
 	if tm.m == nil {
@@ -79,6 +87,12 @@ func (tm *TagMap) addVal(name string, val reflect.Value) error {
 // examples.
 func AddTagFn(tagname string, fn interface{}) error {
 	return globalTags.AddTagFn(tagname, fn)
+}
+
+// MustAddTagFn adds fn as a converter function for tagname tags to the global
+// TagMap like AddTagFn, except this function panics if the tag could not be added.
+func MustAddTagFn(tagname string, fn interface{}) {
+	globalTags.MustAddTagFn(tagname, fn)
 }
 
 // AddTagStructs adds the struct as a matching struct for tagname tags to this
